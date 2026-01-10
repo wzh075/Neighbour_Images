@@ -1,0 +1,22 @@
+# Dataset configuration
+dataset:
+  root_dir: "../Dataset/ModelNet40_Neighbour_view4_1.0"
+  expected_images_per_view: 5
+
+# Point cloud configuration
+pointcloud:
+  root_dir: "../Dataset/modelnet40_ply_hdf5_2048"
+
+# Image transform configuration
+transform:
+  resize: [224, 224]
+  normalize: 
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+
+# Data loader configuration
+dataloader:
+  batch_size: 1
+  shuffle: true
+  num_workers: 0
+  drop_last: false
