@@ -4,7 +4,11 @@ from torchvision.models import resnet50
 
 
 class SelfAttentionBlock(nn.Module):
-    """Self-Attention Block (SAB) for inter-view feature interaction"""
+    """Self-Attention Block (SAB) for inter-view feature interaction
+    
+    用于视点间（Inter-view）的特征交互。
+    在邻域特征融合形成稳健的视点特征后，该模块处理不同视点之间的上下文关系。
+    """
     def __init__(self, d_model, nhead=8, dim_feedforward=2048, dropout=0.1):
         super(SelfAttentionBlock, self).__init__()
         # Multihead attention layer
@@ -111,7 +115,22 @@ class SetTransformerAggregation(nn.Module):
 
 
 class MultiViewVisualEncoder(nn.Module):
-    """Multi-View Visual Encoder for feature extraction"""
+    """
+    Multi-View Visual Encoder with Neighbour Image Fusion Strategy.
+    
+    核心思想 (Core Concept):
+    该编码器不仅处理多个视点（Views），还引入了“邻域图（Neighbour Images）”的概念。
+    
+    结构定义:
+    1. 输入层级：Batch -> N个视点 -> 每个视点包含 M张邻域图 (默认5张)。
+       - 邻域图定义：包含一张中心视点图，以及相机向上下左右微偏渲染的4张互补图。
+    
+    2. 处理流程：
+       - Stage 1 (Backbone): 对所有邻域图独立提取特征。
+       - Stage 2 (Intra-View Fusion): 通过最大池化（Max Pooling）融合同一视点下的5张邻域图特征。
+         这一步不是为了数据增强，而是为了利用邻域的互补信息，形成一个抗遮挡、信息更丰富的“全局视点表示”。
+       - Stage 3 (Inter-View Aggregation): 使用 Set Transformer 融合 N 个增强后的视点特征，生成 3D 对象的全局描述。
+    """
     def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1):
         super(MultiViewVisualEncoder, self).__init__()
         
@@ -143,17 +162,19 @@ class MultiViewVisualEncoder(nn.Module):
         view_tensors = list(views_dict.values())  # List of (B, 5, 3, H, W) tensors
         
         # Stack views: (N, B, 5, 3, H, W)
+        # Note: The dimension '5' here represents the Neighbour Images (Center + 4 deviations)
         x = torch.stack(view_tensors, dim=0)
         
         # Permute to (B, N, 5, 3, H, W)
         x = x.permute(1, 0, 2, 3, 4, 5)
         
         # Get dimensions
-        B, N, CROP, C, H, W = x.size()
+        # NUM_NEIGHBOURS (formerly CROP) represents the 5 neighbour images per view
+        B, N, NUM_NEIGHBOURS, C, H, W = x.size()
         
         # Step 1.2: Reshape for parallel processing
         # Shape: (B * N * 5, 3, H, W)
-        x = x.reshape(B * N * CROP, C, H, W)
+        x = x.reshape(B * N * NUM_NEIGHBOURS, C, H, W)
         
         # Step 1.3: Extract features using backbone
         # Backbone output shape: (B * N * 5, D, 1, 1)
@@ -165,26 +186,31 @@ class MultiViewVisualEncoder(nn.Module):
         
         # Step 1.4: Reshape back to original structure
         # Shape: (B, N, 5, D)
-        backbone_feats = backbone_feats.view(B, N, CROP, -1)
+        backbone_feats = backbone_feats.view(B, N, NUM_NEIGHBOURS, -1)
         
         # Step 1.5: Apply projection to reduce feature dimension
         # Shape: (B, N, 5, feature_dim)
         backbone_feats = self.projection(backbone_feats)
         
+        # ----------------------
+        # Stage 2: Intra-View Neighbour Fusion (Key Step)
+        # ----------------------
+        
         # Step 1.6: Intra-View Max Pooling
-        # Max pool over 5 crops
+        # Aggregate Neighbour Features: Using Max Pooling to fuse the 5 neighbour images into a single view representation.
+        # This allows the model to capture the most salient features from the center and its surroundings.
         # Shape: (B, N, feature_dim)
         view_feats = backbone_feats.max(dim=2)[0]
         
         # ----------------------
-        # Stage 2: Set Transformer Aggregation
+        # Stage 3: Set Transformer Aggregation
         # ----------------------
         
         # Step 2.1: Inter-view interaction and aggregation
         refined_view_feats, aggregated_feat = self.set_transformer(view_feats)
         
         # ----------------------
-        # Stage 3: Output
+        # Stage 4: Output
         # ----------------------
         
         # Step 3.1: Squeeze aggregated feature
@@ -201,7 +227,7 @@ if __name__ == "__main__":
     # Create dummy batch data
     B = 2  # Batch size
     N = 4  # Number of views
-    CROP = 5  # Number of crops per view
+    NUM_NEIGHBOURS = 5  # Number of neighbour images per view
     C = 3  # Channels
     H = W = 224  # Height and width
     
@@ -209,7 +235,7 @@ if __name__ == "__main__":
     dummy_views = {}
     for i in range(N):
         view_name = f'view_{i}'
-        dummy_views[view_name] = torch.randn(B, CROP, C, H, W)
+        dummy_views[view_name] = torch.randn(B, NUM_NEIGHBOURS, C, H, W)
     
     dummy_batch = {'views': dummy_views}
     

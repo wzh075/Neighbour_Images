@@ -106,7 +106,7 @@ class PointCloudLoader:
         Get point cloud data for a given category and object_id
         """
         # Debug: Print input parameters
-        print(f"DEBUG: Looking for point cloud for category={category}, obj_id={obj_id}")
+        # print(f"DEBUG: Looking for point cloud for category={category}, obj_id={obj_id}")
         
         # Try different key formats
         potential_keys = [
@@ -119,11 +119,11 @@ class PointCloudLoader:
         for key in potential_keys:
             if key in self.id2file_mapping:
                 found_key = key
-                print(f"DEBUG: Found key: {key}")
+                # print(f"DEBUG: Found key: {key}")
                 break
         
         if found_key is None:
-            print(f"DEBUG: No mapping found for any potential key: {potential_keys}")
+            # print(f"DEBUG: No mapping found for any potential key: {potential_keys}")
             return None
         
         # Get file name and index
@@ -132,7 +132,7 @@ class PointCloudLoader:
         index = mapping['index']
         
         # Debug: Print mapping info
-        print(f"DEBUG: Mapping - file_name={file_name}, index={index}")
+        # print(f"DEBUG: Mapping - file_name={file_name}, index={index}")
         
         # Get point cloud data
         pointcloud_data = self.pointcloud_data[file_name]
@@ -140,7 +140,7 @@ class PointCloudLoader:
         label = pointcloud_data['labels'][index]
         
         # Debug: Print point cloud info
-        print(f"DEBUG: Point cloud loaded successfully, shape={points.shape}")
+        # print(f"DEBUG: Point cloud loaded successfully, shape={points.shape}")
         
         return {
             'points': points,
@@ -148,6 +148,21 @@ class PointCloudLoader:
         }
 
 class ModelNet40NeighbourDataset(Dataset):
+    """
+    Dataset loader for ModelNet40 with Neighbour Images.
+    
+    Data Structure Concept:
+    Unlike standard multi-view datasets, this loader expects a specific folder structure 
+    where each view folder contains a group of 'Neighbour Images'.
+    
+    Structure: Object -> View_X -> [img_0, img_1, img_2, img_3, img_4]
+    
+    Where:
+    - img_0: Center view (standard rendering).
+    - img_1~4: Neighbour views (rendered with slight camera deviations: up, down, left, right).
+    
+    These images provide complementary local geometry information for the specific viewpoint.
+    """
     def __init__(self, root_dir, transform=None, expected_images_per_view=5, pointcloud_root=None):
         self.root_dir = root_dir
         self.transform = transform
@@ -197,17 +212,17 @@ class ModelNet40NeighbourDataset(Dataset):
                         if os.path.isdir(view_path):
                             view_paths.append(view_path)
                     
-                    # 收集每个视点下的图片
+                    # 收集每个视点下的邻域图 (Neighbour Images)
                     view_images = {}
                     for view_path in view_paths:
                         view_name = os.path.basename(view_path)
                         images = glob.glob(os.path.join(view_path, "*.png"))
                         
-                        # 检查图片数量是否符合预期
+                        # 检查图片数量是否符合预期 (应为 5 张: 1中心 + 4邻域)
                         if len(images) != self.expected_images_per_view:
                             raise ValueError(f"Error: Object {obj} in category {category} has {len(images)} images in {view_name}, expected {self.expected_images_per_view}")
                         
-                        # 按索引排序图片
+                        # 按索引排序图片以保持邻域的结构顺序 (e.g., 0=center, 1=up, 2=down...)
                         images.sort(key=lambda x: int(os.path.basename(x).split('_')[-1].split('.')[0]))
                         view_images[view_name] = images
                     
@@ -266,7 +281,8 @@ class ModelNet40NeighbourDataset(Dataset):
                 if self.transform:
                     img = self.transform(img)
                 images.append(img)
-            # 将同一视点的图片堆叠在一起
+            # 将同一视点的邻域图堆叠在一起: (5, C, H, W)
+            # 这是一个 "Neighbour Group"，而非随机 Batch
             loaded_views[view_name] = torch.stack(images)
         
         # 加载点云数据
