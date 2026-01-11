@@ -170,12 +170,15 @@ class ModelNet40NeighbourDataset(Dataset):
         self.pointcloud_root = pointcloud_root
         self.data = []
         self.category_counts = {}
+        self.pointcloud_load_failures = 0  # 新增：统计点云加载失败的数量
+        self.total_pointcloud_attempts = 0  # 新增：统计点云加载尝试的总数量
         
         # Initialize point cloud loader if root is provided
         self.pointcloud_loader = PointCloudLoader(pointcloud_root) if pointcloud_root else None
         
         self._build_index()
         self._print_category_counts()
+        # 移除：初始化时不打印点云统计，因为此时还没有实际加载点云数据
     
     def _build_index(self):
         categories = os.listdir(self.root_dir)
@@ -263,6 +266,18 @@ class ModelNet40NeighbourDataset(Dataset):
         print("-" * 30)
         print(f"Total samples: {total_samples}")
     
+    def _print_pointcloud_load_stats(self):
+        """打印点云加载统计信息"""
+        if self.pointcloud_loader:
+            print("\nPointCloud Load Statistics:")
+            print("-" * 30)
+            print(f"Total pointcloud attempts: {self.total_pointcloud_attempts}")
+            print(f"Failed pointcloud loads: {self.pointcloud_load_failures}")
+            if self.total_pointcloud_attempts > 0:
+                success_rate = ((self.total_pointcloud_attempts - self.pointcloud_load_failures) / self.total_pointcloud_attempts) * 100
+                print(f"Pointcloud load success rate: {success_rate:.2f}%")
+            print("-" * 30)
+    
     def __len__(self):
         return len(self.data)
     
@@ -271,6 +286,18 @@ class ModelNet40NeighbourDataset(Dataset):
         category = sample['category']
         object_id = sample['object_id']
         view_images = sample['view_images']
+        
+        # 加载点云数据（先检查点云是否有效，避免后续处理无效数据）
+        pointcloud = None
+        if self.pointcloud_loader:
+            self.total_pointcloud_attempts += 1  # 增加点云加载尝试计数
+            pointcloud_data = self.pointcloud_loader.get_pointcloud(category, object_id)
+            if pointcloud_data:
+                pointcloud = torch.from_numpy(pointcloud_data['points'])
+            else:
+                # 如果点云加载失败，增加失败计数并重新获取下一个样本
+                self.pointcloud_load_failures += 1
+                return self.__getitem__((idx + 1) % len(self))
         
         # 加载所有视点的图片
         loaded_views = {}
@@ -284,13 +311,6 @@ class ModelNet40NeighbourDataset(Dataset):
             # 将同一视点的邻域图堆叠在一起: (5, C, H, W)
             # 这是一个 "Neighbour Group"，而非随机 Batch
             loaded_views[view_name] = torch.stack(images)
-        
-        # 加载点云数据
-        pointcloud = None
-        if self.pointcloud_loader:
-            pointcloud_data = self.pointcloud_loader.get_pointcloud(category, object_id)
-            if pointcloud_data:
-                pointcloud = torch.from_numpy(pointcloud_data['points'])
         
         return {
             'category': category,

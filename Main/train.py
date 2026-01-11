@@ -110,10 +110,11 @@ def main():
     parser.add_argument('--batch_size', type=int, default=16, help='批次大小')
     parser.add_argument('--lr', type=float, default=1e-4, help='学习率')
     parser.add_argument('--device', type=str, default='cuda', help='计算设备类型')
-    parser.add_argument('--gpus', type=str, default='0,1,2,3', help='要使用的显卡ID列表，用逗号分隔，如"0,1"')
+    parser.add_argument('--gpus', type=str, default='0,1', help='要使用的显卡ID列表，用逗号分隔，如"0,1"')
     parser.add_argument('--num_workers', type=int, default=4, help='Dataloader工作线程数')
     parser.add_argument('--log_dir', type=str, default='../Log', help='日志保存根目录')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints', help='模型保存根目录')
+    parser.add_argument('--freeze_backbone', action='store_true', default=True, help='是否冻结ResNet Backbone参数')
     args = parser.parse_args()
     
     # 设置随机种子
@@ -146,10 +147,33 @@ def main():
     dataloader = create_dataloader(config, args.batch_size, args.num_workers)
     logging.info(f"数据加载器创建完成，训练样本数: {len(dataloader.dataset)}, 批次大小: {args.batch_size}, 批次数量: {len(dataloader)}")
     
+    # 计算并建议合适的batch size
+    num_gpus = torch.cuda.device_count() if device.type == 'cuda' else 1
+    logging.info(f"\n=== Batch Size 建议 ===")
+    logging.info(f"当前设置: batch_size={args.batch_size}, 使用显卡数={num_gpus}")
+    logging.info(f"注意：在multi_view_visual_encoder.py中，实际传入Backbone的图片数量会被放大为 B * N * NUM_NEIGHBOURS")
+    logging.info(f"例如：如果N=4, NUM_NEIGHBOURS=5，那么每张显卡需要处理的图片数为: (16 * 4 * 5) / {num_gpus} = {16 * 4 * 5 / num_gpus}张")
+    
+    # 建议合理的batch size范围
+    if device.type == 'cuda':
+        suggested_batch_size = max(1, int(args.batch_size / num_gpus))
+        logging.info(f"\n建议：在多卡环境下，您可以将batch size设置为 {suggested_batch_size} ~ {args.batch_size}")
+        logging.info(f"这样每张显卡处理的实际图片数量会更合理，减少显存压力")
+    
     # 初始化模型
     logging.info("初始化模型...")
-    image_encoder = MultiViewVisualEncoder(feature_dim=1024)
+    image_encoder = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
     pointcloud_encoder = PointCloudEncoder(feature_dim=1024)
+    
+    # 记录是否冻结backbone
+    logging.info(f"是否冻结ResNet Backbone: {args.freeze_backbone}")
+    
+    # 使用DataParallel包装模型，利用多张显卡
+    if device.type == 'cuda' and torch.cuda.device_count() > 1:
+        logging.info(f"检测到 {torch.cuda.device_count()} 张可用显卡，使用DataParallel...")
+        image_encoder = torch.nn.DataParallel(image_encoder)
+        pointcloud_encoder = torch.nn.DataParallel(pointcloud_encoder)
+        logging.info("模型已使用DataParallel包装")
     
     # 将模型移动到设备
     image_encoder = image_encoder.to(device)
@@ -261,11 +285,17 @@ def main():
             writer.add_scalar('Loss/avg_inter', avg_inter_loss, epoch)
         
         # 保存检查点
+        # 处理DataParallel的state_dict，移除module前缀
+        def get_state_dict(model):
+            if isinstance(model, torch.nn.DataParallel):
+                return model.module.state_dict()
+            return model.state_dict()
+        
         # 1. 保存最后一个模型
         last_checkpoint = {
             'epoch': epoch+1,
-            'image_encoder_state_dict': image_encoder.state_dict(),
-            'pointcloud_encoder_state_dict': pointcloud_encoder.state_dict(),
+            'image_encoder_state_dict': get_state_dict(image_encoder),
+            'pointcloud_encoder_state_dict': get_state_dict(pointcloud_encoder),
             'optimizer_state_dict': optimizer.state_dict(),
             'loss': avg_total_loss
         }
@@ -276,8 +306,8 @@ def main():
             best_total_loss = avg_total_loss
             best_checkpoint = {
                 'epoch': epoch+1,
-                'image_encoder_state_dict': image_encoder.state_dict(),
-                'pointcloud_encoder_state_dict': pointcloud_encoder.state_dict(),
+                'image_encoder_state_dict': get_state_dict(image_encoder),
+                'pointcloud_encoder_state_dict': get_state_dict(pointcloud_encoder),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': best_total_loss
             }
@@ -289,6 +319,17 @@ def main():
     logging.info(f"最优模型总损失: {best_total_loss:.4f}")
     logging.info(f"日志保存位置: {log_dir}")
     logging.info(f"模型检查点保存位置: {checkpoint_dir}")
+    
+    # 输出点云加载的最终统计信息
+    if hasattr(dataloader.dataset, 'total_pointcloud_attempts') and hasattr(dataloader.dataset, 'pointcloud_load_failures'):
+        total_attempts = dataloader.dataset.total_pointcloud_attempts
+        failed_loads = dataloader.dataset.pointcloud_load_failures
+        logging.info("\n=== 点云加载最终统计信息 ===")
+        logging.info(f"总尝试加载次数: {total_attempts}")
+        logging.info(f"加载失败次数: {failed_loads}")
+        if total_attempts > 0:
+            success_rate = ((total_attempts - failed_loads) / total_attempts) * 100
+            logging.info(f"加载成功率: {success_rate:.2f}%")
     
     # 关闭SummaryWriter
     if writer is not None:

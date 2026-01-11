@@ -131,7 +131,7 @@ class MultiViewVisualEncoder(nn.Module):
          这一步不是为了数据增强，而是为了利用邻域的互补信息，形成一个抗遮挡、信息更丰富的“全局视点表示”。
        - Stage 3 (Inter-View Aggregation): 使用 Set Transformer 融合 N 个增强后的视点特征，生成 3D 对象的全局描述。
     """
-    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1):
+    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1, freeze_backbone=False):
         super(MultiViewVisualEncoder, self).__init__()
         
         # Step 1: Initialize backbone
@@ -148,6 +148,16 @@ class MultiViewVisualEncoder(nn.Module):
         
         # Step 3: Set Transformer for aggregation
         self.set_transformer = SetTransformerAggregation(feature_dim, nhead, dim_feedforward, dropout)
+        
+        # Step 4: Freeze backbone parameters if specified
+        if freeze_backbone:
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+            print(f"ResNet Backbone parameters have been frozen. Only projection layers and set transformer will be trained.")
+        else:
+            for param in self.backbone.parameters():
+                param.requires_grad = True
+            print(f"All parameters (including ResNet Backbone) will be trained.")
 
     def forward(self, batch):
         # Input: batch containing 'views' dictionary
