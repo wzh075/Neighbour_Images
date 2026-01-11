@@ -107,9 +107,10 @@ def main():
     parser = argparse.ArgumentParser(description='Unsupervised Cross-Modal Contrastive Learning Training Script')
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml', help='配置文件路径')
     parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
-    parser.add_argument('--batch_size', type=int, default=32, help='批次大小')
+    parser.add_argument('--batch_size', type=int, default=16, help='批次大小')
     parser.add_argument('--lr', type=float, default=1e-4, help='学习率')
-    parser.add_argument('--device', type=str, default='cuda', help='计算设备')
+    parser.add_argument('--device', type=str, default='cuda', help='计算设备类型')
+    parser.add_argument('--gpus', type=str, default='0,1,2,3', help='要使用的显卡ID列表，用逗号分隔，如"0,1"')
     parser.add_argument('--num_workers', type=int, default=4, help='Dataloader工作线程数')
     parser.add_argument('--log_dir', type=str, default='../Log', help='日志保存根目录')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints', help='模型保存根目录')
@@ -130,8 +131,14 @@ def main():
     logging.info("开始无监督跨模态对比学习训练")
     logging.info(f"命令行参数: {vars(args)}")
     
-    # 检查设备
-    device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
+    # 设置CUDA可见设备
+    if args.device == 'cuda' and torch.cuda.is_available():
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
+        gpu_ids = [int(id.strip()) for id in args.gpus.split(',')]
+        logging.info(f"使用的显卡ID: {gpu_ids}")
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
     logging.info(f"使用设备: {device}")
     
     # 创建数据加载器
