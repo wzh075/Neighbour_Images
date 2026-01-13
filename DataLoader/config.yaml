@@ -1,12 +1,12 @@
 # Dataset configuration
 dataset:
-  root_dir: "../Dataset/ModelNet40_Neighbour_view4_1.0"
+  root_dir: "/data1/Wuzhihe/Neighbour_Images/Dataset/ModelNet40_Neighbour_view4_1.0"
   # Defines the Neighbour Group size: 1 Center + 4 Deviated renderings
   expected_images_per_view: 5
 
 # Point cloud configuration
 pointcloud:
-  root_dir: "../Dataset/modelnet40_ply_hdf5_2048"
+  root_dir: "/data1/Wuzhihe/Neighbour_Images/Dataset/modelnet40_ply_hdf5_2048"
 
 # Image transform configuration
 transform:
