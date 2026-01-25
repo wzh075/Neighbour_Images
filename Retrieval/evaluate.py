@@ -427,7 +427,7 @@ class RetrievalEngine:
         
         # 打印表头
         headers = ["类别"] + [result['name'] for result in results]
-        print(f"{'类别':<20}" + "".join([f"{name:<15}" for name in ["R@1"]*len(results)]))
+        print(f"{'类别':<20}" + "".join([f"{name:<15}" for name in headers[1:]]))
         print("-" * (20 + 15*len(results)))
         
         # 打印每个类别的结果
@@ -452,8 +452,8 @@ def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='检索性能评估脚本')
     parser.add_argument('--feature_file', type=str, default='../Embedding/features_all.h5', help='特征文件路径')
-    parser.add_argument('--batch_size', type=int, default=128, help='检索计算时的批次大小')
-    parser.add_argument('--device', type=str, default='cuda', help='计算设备')
+    parser.add_argument('--batch_size', type=int, default=8, help='检索计算时的批次大小')
+    parser.add_argument('--device', type=str, default='cpu', help='计算设备')
     
     args = parser.parse_args()
     

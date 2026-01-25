@@ -131,7 +131,7 @@ class MultiViewVisualEncoder(nn.Module):
          这一步不是为了数据增强，而是为了利用邻域的互补信息，形成一个抗遮挡、信息更丰富的“全局视点表示”。
        - Stage 3 (Inter-View Aggregation): 使用 Set Transformer 融合 N 个增强后的视点特征，生成 3D 对象的全局描述。
     """
-    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1, freeze_backbone=False):
+    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1, freeze_backbone=False, num_views=12, view_embedding_dim=512):
         super(MultiViewVisualEncoder, self).__init__()
         
         # Step 1: Initialize backbone
@@ -148,6 +148,12 @@ class MultiViewVisualEncoder(nn.Module):
         
         # Step 3: Set Transformer for aggregation
         self.set_transformer = SetTransformerAggregation(feature_dim, nhead, dim_feedforward, dropout)
+        self.view_embedding = nn.Embedding(num_views, view_embedding_dim)
+        self.view_generator = nn.Sequential(
+            nn.Linear(feature_dim + view_embedding_dim, feature_dim * 2),
+            nn.ReLU(),
+            nn.Linear(feature_dim * 2, feature_dim)
+        )
         
         # Step 4: Freeze backbone parameters if specified
         if freeze_backbone:
@@ -159,7 +165,7 @@ class MultiViewVisualEncoder(nn.Module):
                 param.requires_grad = True
             print(f"All parameters (including ResNet Backbone) will be trained.")
 
-    def forward(self, batch):
+    def forward(self, batch, mode='default'):
         # Input: batch containing 'views' dictionary
         views_dict = batch['views']
         
@@ -226,7 +232,23 @@ class MultiViewVisualEncoder(nn.Module):
         # Step 3.1: Squeeze aggregated feature
         # Shape: (B, D)
         global_image_feat = aggregated_feat.squeeze(1)
-        
+        if mode == 'train_with_gen':
+            B, N, D = view_feats.size()
+            device = view_feats.device
+            if N < 2:
+                loss_gen = torch.tensor(0.0, device=device)
+            else:
+                s = torch.randint(0, N, (B,), device=device)
+                t = torch.randint(0, N, (B,), device=device)
+                t = torch.where(t == s, (t + 1) % N, t)
+                b_idx = torch.arange(B, device=device)
+                source_feat = view_feats[b_idx, s]
+                target_real = view_feats[b_idx, t]
+                target_emb = self.view_embedding(t)
+                in_feat = torch.cat([source_feat, target_emb], dim=1)
+                pred_feat = self.view_generator(in_feat)
+                loss_gen = torch.mean((pred_feat - target_real) ** 2)
+            return refined_view_feats, global_image_feat, loss_gen
         return refined_view_feats, global_image_feat
 
 

@@ -206,7 +206,7 @@ class ModelNet40NeighbourDataset(Dataset):
                 
                 for obj in objects:
                     obj_path = os.path.join(split_path, obj)
-                    views = os.listdir(obj_path)
+                    views = sorted(os.listdir(obj_path), key=lambda v: (''.join([c for c in v if not c.isdigit()]), int(''.join([c for c in v if c.isdigit()]) or -1)))
                     
                     # 检查视点数量是否一致（根据数据集自适应）
                     view_paths = []

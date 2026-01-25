@@ -3,6 +3,7 @@ import sys
 import argparse
 import logging
 import copy
+import h5py
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -11,7 +12,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DataLoader.data_loader import load_config
 from Models.multi_view_visual_encoder import MultiViewVisualEncoder
-from Models.pointcloud_encoder import PointCloudEncoder
 from Main.extract import find_latest_checkpoint, create_dataloader
 
 
@@ -25,7 +25,6 @@ def setup_logging():
 
 def load_models(device, checkpoint_path):
     image_encoder = MultiViewVisualEncoder(feature_dim=1024)
-    pointcloud_encoder = PointCloudEncoder(feature_dim=1024)
     checkpoint = torch.load(checkpoint_path, map_location=device)
 
     def load_state_dict(model, state_dict):
@@ -37,11 +36,9 @@ def load_models(device, checkpoint_path):
             model.load_state_dict(state_dict)
 
     load_state_dict(image_encoder, checkpoint['image_encoder_state_dict'])
-    load_state_dict(pointcloud_encoder, checkpoint['pointcloud_encoder_state_dict'])
 
     image_encoder = image_encoder.to(device).eval()
-    pointcloud_encoder = pointcloud_encoder.to(device).eval()
-    return image_encoder, pointcloud_encoder
+    return image_encoder
 
 
 def compute_cosine_similarity(query_feats, gallery_feats, device, batch_size):
@@ -121,17 +118,18 @@ def run_eval(args):
         checkpoint_path = args.checkpoint
     else:
         checkpoint_path = find_latest_checkpoint('../Checkpoints')
-    image_encoder, pointcloud_encoder = load_models(device, checkpoint_path)
+    image_encoder = load_models(device, checkpoint_path)
+    with h5py.File(args.feature_file, 'r') as f:
+        gallery_feats = torch.from_numpy(f['global_image_feats'][:]).float().to(device)
+        gallery_ids = [x.decode('utf-8') for x in f['object_ids'][:]]
+        gallery_cats = [x.decode('utf-8') for x in f['categories'][:]]
+    gallery_feats = gallery_feats / gallery_feats.norm(dim=1, keepdim=True)
     dataloader = create_dataloader(config, args.batch_size, args.num_workers)
     results = {}
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="推理"):
-            if batch['pointcloud'] is None:
-                continue
             for view_name in batch['views']:
                 batch['views'][view_name] = batch['views'][view_name].to(device)
-            batch['pointcloud'] = batch['pointcloud'].to(device)
-            _, global_point_feat = pointcloud_encoder(batch)
             view_keys = list(batch['views'].keys())
             try:
                 view_keys = sorted(view_keys, key=lambda x: int(x.split('_')[-1]))
@@ -144,17 +142,15 @@ def run_eval(args):
                 modified_batch['views'] = modified_views
                 _, global_image_feat = image_encoder(modified_batch)
                 if idx not in results:
-                    results[idx] = {'img_feats': [], 'pc_feats': [], 'ids': []}
+                    results[idx] = {'img_feats': [], 'ids': []}
                 results[idx]['img_feats'].append(global_image_feat.cpu())
-                results[idx]['pc_feats'].append(global_point_feat.cpu())
                 results[idx]['ids'].extend(batch['object_id'])
     report = []
     for idx in sorted(results.keys()):
         img_feats = torch.cat(results[idx]['img_feats'], dim=0)
-        pc_feats = torch.cat(results[idx]['pc_feats'], dim=0)
         ids = results[idx]['ids']
-        sim = compute_cosine_similarity(img_feats, pc_feats, device, args.eval_batch_size)
-        r1, r5, r10 = evaluate_recall(sim, ids, ids)
+        sim = compute_cosine_similarity(img_feats, gallery_feats, device, args.eval_batch_size)
+        r1, r5, r10 = evaluate_recall(sim, ids, gallery_ids)
         report.append((idx, r1, r5, r10))
     print("\n=== 单视点输入鲁棒性评估 ===")
     print(f"{'输入源视点':<12} {'R@1':>8} {'R@5':>8} {'R@10':>8}")
@@ -171,6 +167,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='单视点输入鲁棒性评估')
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
     parser.add_argument('--checkpoint', type=str, default=None)
+    parser.add_argument('--feature_file', type=str, default='../Embedding/features_all.h5')
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cuda')

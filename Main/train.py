@@ -106,15 +106,16 @@ def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Unsupervised Cross-Modal Contrastive Learning Training Script')
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml', help='配置文件路径')
-    parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
-    parser.add_argument('--batch_size', type=int, default=32, help='批次大小')
-    parser.add_argument('--lr', type=float, default=1e-4, help='学习率')
+    parser.add_argument('--epochs', type=int, default=300, help='训练轮数')
+    parser.add_argument('--batch_size', type=int, default=8, help='批次大小')
+    parser.add_argument('--lr', type=float, default=1e-3, help='学习率')
     parser.add_argument('--device', type=str, default='cuda', help='计算设备类型')
-    parser.add_argument('--gpus', type=str, default='3,1', help='要使用的显卡ID列表，用逗号分隔，如"0,1"')
+    parser.add_argument('--gpus', type=str, default='1,2,3', help='要使用的显卡ID列表，用逗号分隔，如"0,1"')
     parser.add_argument('--num_workers', type=int, default=4, help='Dataloader工作线程数')
     parser.add_argument('--log_dir', type=str, default='../Log', help='日志保存根目录')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints', help='模型保存根目录')
     parser.add_argument('--freeze_backbone', action='store_true', default=True, help='是否冻结ResNet Backbone参数')
+    parser.add_argument('--lambda_gen', type=float, default=1.0, help='生成损失权重')
     args = parser.parse_args()
     
     # 设置随机种子
@@ -193,6 +194,14 @@ def main():
         list(image_encoder.parameters()) + list(pointcloud_encoder.parameters()),
         lr=args.lr
     )
+    # === 新增：LR Scheduler 初始化 ===
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.5,
+        patience=5,
+        verbose=True
+    )
     
     # 创建模型保存目录
     checkpoint_dir = os.path.join(args.checkpoint_dir, timestamp)
@@ -210,6 +219,7 @@ def main():
         epoch_total_loss = 0.0
         epoch_intra_loss = 0.0
         epoch_inter_loss = 0.0
+        epoch_gen_loss = 0.0
         
         # 使用tqdm包装批次循环
         batch_iter = tqdm(dataloader, desc=f"Epoch {epoch+1}", leave=False)
@@ -229,7 +239,10 @@ def main():
                 
                 # 前向传播
                 # 1. 图像编码器
-                refined_view_feats, global_image_feat = image_encoder(batch)
+                outputs = image_encoder(batch, mode='train_with_gen')
+                refined_view_feats, global_image_feat, loss_gen = outputs
+                if isinstance(loss_gen, torch.Tensor) and loss_gen.dim() > 0:
+                    loss_gen = loss_gen.mean()
                 
                 # 2. 点云编码器
                 _, global_point_feat = pointcloud_encoder(batch)
@@ -239,29 +252,36 @@ def main():
                 
                 # 反向传播和优化
                 optimizer.zero_grad()
-                loss_dict['total_loss'].backward()
+                total_loss_tensor = loss_dict['total_loss'] + args.lambda_gen * loss_gen
+                total_loss_tensor.backward()
                 optimizer.step()
                 
                 # 记录损失
-                total_loss = loss_dict['total_loss'].item()
+                total_loss = total_loss_tensor.item()
                 intra_loss = loss_dict['intra_view_loss'].item()
                 inter_loss = loss_dict['inter_modal_loss'].item()
+                gen_loss = loss_gen.item()
                 
                 epoch_total_loss += total_loss
                 epoch_intra_loss += intra_loss
                 epoch_inter_loss += inter_loss
+                if 'epoch_gen_loss' not in locals():
+                    epoch_gen_loss = 0.0
+                epoch_gen_loss += gen_loss
                 
                 # 记录到TensorBoard
                 if writer is not None:
                     writer.add_scalar('Loss/total', total_loss, batch_counter)
                     writer.add_scalar('Loss/intra', intra_loss, batch_counter)
                     writer.add_scalar('Loss/inter', inter_loss, batch_counter)
+                    writer.add_scalar('Loss/gen', gen_loss, batch_counter)
                 
                 # 在tqdm后缀中显示当前损失
                 batch_iter.set_postfix({
                     'Total Loss': f'{total_loss:.4f}',
                     'Intra Loss': f'{intra_loss:.4f}',
-                    'Inter Loss': f'{inter_loss:.4f}'
+                    'Inter Loss': f'{inter_loss:.4f}',
+                    'Gen Loss': f'{gen_loss:.4f}'
                 })
                 
                 batch_counter += 1
@@ -275,14 +295,22 @@ def main():
         avg_total_loss = epoch_total_loss / len(dataloader)
         avg_intra_loss = epoch_intra_loss / len(dataloader)
         avg_inter_loss = epoch_inter_loss / len(dataloader)
+        avg_gen_loss = epoch_gen_loss / len(dataloader) if 'epoch_gen_loss' in locals() else 0.0
         
-        logging.info(f"Epoch {epoch+1} 平均损失: Total={avg_total_loss:.4f}, Intra={avg_intra_loss:.4f}, Inter={avg_inter_loss:.4f}")
+        logging.info(f"Epoch {epoch+1} 平均损失: Total={avg_total_loss:.4f}, Intra={avg_intra_loss:.4f}, Inter={avg_inter_loss:.4f}, Gen={avg_gen_loss:.4f}")
+        # === 新增：根据总损失调整学习率，并记录当前学习率 ===
+        scheduler.step(avg_total_loss)
+        current_lr = optimizer.param_groups[0]['lr']
+        logging.info(f"当前学习率: {current_lr:.6f}")
         
         # 记录平均损失到TensorBoard
         if writer is not None:
             writer.add_scalar('Loss/avg_total', avg_total_loss, epoch)
             writer.add_scalar('Loss/avg_intra', avg_intra_loss, epoch)
             writer.add_scalar('Loss/avg_inter', avg_inter_loss, epoch)
+            writer.add_scalar('Loss/avg_gen', avg_gen_loss, epoch)
+            # === 新增：TensorBoard记录当前学习率 ===
+            writer.add_scalar('Train/Learning_Rate', current_lr, epoch)
         
         # 保存检查点
         # 处理DataParallel的state_dict，移除module前缀
