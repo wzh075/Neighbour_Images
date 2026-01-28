@@ -149,11 +149,53 @@ class MultiViewVisualEncoder(nn.Module):
         # Step 3: Set Transformer for aggregation
         self.set_transformer = SetTransformerAggregation(feature_dim, nhead, dim_feedforward, dropout)
         self.view_embedding = nn.Embedding(num_views, view_embedding_dim)
-        self.view_generator = nn.Sequential(
-            nn.Linear(feature_dim + view_embedding_dim, feature_dim * 2),
-            nn.ReLU(),
-            nn.Linear(feature_dim * 2, feature_dim)
-        )
+        
+        # 残差门控自适应生成器 (Residual Gated Adaptive Generator)
+        class AdaptiveViewGenerator(nn.Module):
+            def __init__(self, feature_dim, pose_dim):
+                super(AdaptiveViewGenerator, self).__init__()
+                # 特征变换支路
+                self.feat_transform = nn.Sequential(
+                    nn.Linear(feature_dim, feature_dim),
+                    nn.LayerNorm(feature_dim),
+                    nn.ReLU()
+                )
+                
+                # 位姿门控支路
+                self.pose_gate = nn.Sequential(
+                    nn.Linear(pose_dim, feature_dim),
+                    nn.ReLU(),
+                    nn.Linear(feature_dim, feature_dim),
+                    nn.Sigmoid()  # 生成0~1的门控向量
+                )
+                
+                # 残差生成支路
+                self.delta_net = nn.Sequential(
+                    nn.Linear(feature_dim, feature_dim),
+                    nn.LayerNorm(feature_dim),
+                    nn.ReLU(),
+                    nn.Linear(feature_dim, feature_dim)
+                )
+            
+            def forward(self, source_feat, target_pose_emb):
+                # 1. 特征变换
+                f_transformed = self.feat_transform(source_feat)
+                
+                # 2. 生成位姿门控
+                gate = self.pose_gate(target_pose_emb)
+                
+                # 3. 门控融合
+                f_fused = f_transformed * gate
+                
+                # 4. 计算残差
+                delta = self.delta_net(f_fused)
+                
+                # 5. 残差连接
+                output = source_feat + delta
+                
+                return output
+        
+        self.view_generator = AdaptiveViewGenerator(feature_dim, view_embedding_dim)
         
         # Step 4: Freeze backbone parameters if specified
         if freeze_backbone:
@@ -244,9 +286,8 @@ class MultiViewVisualEncoder(nn.Module):
                 b_idx = torch.arange(B, device=device)
                 source_feat = view_feats[b_idx, s]
                 target_real = view_feats[b_idx, t]
-                target_emb = self.view_embedding(t)
-                in_feat = torch.cat([source_feat, target_emb], dim=1)
-                pred_feat = self.view_generator(in_feat)
+                target_pose_emb = self.view_embedding(t)
+                pred_feat = self.view_generator(source_feat, target_pose_emb)
                 loss_gen = torch.mean((pred_feat - target_real) ** 2)
             return refined_view_feats, global_image_feat, loss_gen
         return refined_view_feats, global_image_feat

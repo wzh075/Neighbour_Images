@@ -312,12 +312,18 @@ class ModelNet40NeighbourDataset(Dataset):
             # 这是一个 "Neighbour Group"，而非随机 Batch
             loaded_views[view_name] = torch.stack(images)
         
-        return {
+        # 构建返回字典
+        result = {
             'category': category,
             'object_id': object_id,
-            'views': loaded_views,
-            'pointcloud': pointcloud
+            'views': loaded_views
         }
+        
+        # 只有当pointcloud_loader存在且pointcloud不为None时，才添加pointcloud键
+        if self.pointcloud_loader and pointcloud is not None:
+            result['pointcloud'] = pointcloud
+        
+        return result
 
 def main():
     # 从配置文件加载配置
