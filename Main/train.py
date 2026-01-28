@@ -22,7 +22,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 导入自定义模块
 from DataLoader.data_loader import ModelNet40NeighbourDataset, load_config
 from Models.multi_view_visual_encoder import MultiViewVisualEncoder
-from Models.pointcloud_encoder import PointCloudEncoder
 from Loss_Function.instance_contrastive_loss import InstanceDualContrastiveLoss
 
 def setup_seed(seed):
@@ -87,7 +86,7 @@ def create_dataloader(config, batch_size, num_workers):
         root_dir=config['dataset']['root_dir'],
         transform=transform,
         expected_images_per_view=config['dataset']['expected_images_per_view'],
-        pointcloud_root=config.get('pointcloud', {}).get('root_dir')
+        pointcloud_root=None
     )
     
     # 创建数据加载器
@@ -164,7 +163,6 @@ def main():
     # 初始化模型
     logging.info("初始化模型...")
     image_encoder = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
-    pointcloud_encoder = PointCloudEncoder(feature_dim=1024)
     
     # 记录是否冻结backbone
     logging.info(f"是否冻结ResNet Backbone: {args.freeze_backbone}")
@@ -173,25 +171,23 @@ def main():
     if device.type == 'cuda' and torch.cuda.device_count() > 1:
         logging.info(f"检测到 {torch.cuda.device_count()} 张可用显卡，使用DataParallel...")
         image_encoder = torch.nn.DataParallel(image_encoder)
-        pointcloud_encoder = torch.nn.DataParallel(pointcloud_encoder)
         logging.info("模型已使用DataParallel包装")
     
     # 将模型移动到设备
     image_encoder = image_encoder.to(device)
-    pointcloud_encoder = pointcloud_encoder.to(device)
     
     # 初始化损失函数
     loss_module = InstanceDualContrastiveLoss(
         feature_dim=1024,
         projection_dim=512,
         temperature=0.07,
-        weights={'lambda_intra': 0.5, 'lambda_inter': 0.5}
+        weights={'lambda_intra': 1.0}
     )
     loss_module = loss_module.to(device)
     
-    # 初始化优化器，同时优化两个编码器的参数
+    # 初始化优化器，只优化图像编码器的参数
     optimizer = optim.Adam(
-        list(image_encoder.parameters()) + list(pointcloud_encoder.parameters()),
+        list(image_encoder.parameters()),
         lr=args.lr
     )
     # === 新增：LR Scheduler 初始化 ===
@@ -218,7 +214,6 @@ def main():
         # 初始化损失统计
         epoch_total_loss = 0.0
         epoch_intra_loss = 0.0
-        epoch_inter_loss = 0.0
         epoch_gen_loss = 0.0
         
         # 使用tqdm包装批次循环
@@ -226,16 +221,9 @@ def main():
         
         for batch_idx, batch in enumerate(batch_iter):
             try:
-                # 过滤无效数据（点云为None的情况）
-                if batch['pointcloud'] is None:
-                    if batch_idx == 0:  # 仅在每轮第一次出现时打印警告
-                        logging.warning("检测到无效点云数据，已跳过该批次")
-                    continue
-                
                 # 将数据移动到设备
                 for view_name in batch['views']:
                     batch['views'][view_name] = batch['views'][view_name].to(device)
-                batch['pointcloud'] = batch['pointcloud'].to(device)
                 
                 # 前向传播
                 # 1. 图像编码器
@@ -244,11 +232,8 @@ def main():
                 if isinstance(loss_gen, torch.Tensor) and loss_gen.dim() > 0:
                     loss_gen = loss_gen.mean()
                 
-                # 2. 点云编码器
-                _, global_point_feat = pointcloud_encoder(batch)
-                
-                # 3. 计算损失
-                loss_dict = loss_module(refined_view_feats, global_image_feat, global_point_feat)
+                # 2. 计算损失
+                loss_dict = loss_module(refined_view_feats, global_image_feat)
                 
                 # 反向传播和优化
                 optimizer.zero_grad()
@@ -259,12 +244,10 @@ def main():
                 # 记录损失
                 total_loss = total_loss_tensor.item()
                 intra_loss = loss_dict['intra_view_loss'].item()
-                inter_loss = loss_dict['inter_modal_loss'].item()
                 gen_loss = loss_gen.item()
                 
                 epoch_total_loss += total_loss
                 epoch_intra_loss += intra_loss
-                epoch_inter_loss += inter_loss
                 if 'epoch_gen_loss' not in locals():
                     epoch_gen_loss = 0.0
                 epoch_gen_loss += gen_loss
@@ -273,14 +256,12 @@ def main():
                 if writer is not None:
                     writer.add_scalar('Loss/total', total_loss, batch_counter)
                     writer.add_scalar('Loss/intra', intra_loss, batch_counter)
-                    writer.add_scalar('Loss/inter', inter_loss, batch_counter)
                     writer.add_scalar('Loss/gen', gen_loss, batch_counter)
                 
                 # 在tqdm后缀中显示当前损失
                 batch_iter.set_postfix({
                     'Total Loss': f'{total_loss:.4f}',
                     'Intra Loss': f'{intra_loss:.4f}',
-                    'Inter Loss': f'{inter_loss:.4f}',
                     'Gen Loss': f'{gen_loss:.4f}'
                 })
                 
@@ -294,10 +275,9 @@ def main():
         # 计算平均损失
         avg_total_loss = epoch_total_loss / len(dataloader)
         avg_intra_loss = epoch_intra_loss / len(dataloader)
-        avg_inter_loss = epoch_inter_loss / len(dataloader)
         avg_gen_loss = epoch_gen_loss / len(dataloader) if 'epoch_gen_loss' in locals() else 0.0
         
-        logging.info(f"Epoch {epoch+1} 平均损失: Total={avg_total_loss:.4f}, Intra={avg_intra_loss:.4f}, Inter={avg_inter_loss:.4f}, Gen={avg_gen_loss:.4f}")
+        logging.info(f"Epoch {epoch+1} 平均损失: Total={avg_total_loss:.4f}, Intra={avg_intra_loss:.4f}, Gen={avg_gen_loss:.4f}")
         # === 新增：根据总损失调整学习率，并记录当前学习率 ===
         scheduler.step(avg_total_loss)
         current_lr = optimizer.param_groups[0]['lr']
@@ -307,7 +287,6 @@ def main():
         if writer is not None:
             writer.add_scalar('Loss/avg_total', avg_total_loss, epoch)
             writer.add_scalar('Loss/avg_intra', avg_intra_loss, epoch)
-            writer.add_scalar('Loss/avg_inter', avg_inter_loss, epoch)
             writer.add_scalar('Loss/avg_gen', avg_gen_loss, epoch)
             # === 新增：TensorBoard记录当前学习率 ===
             writer.add_scalar('Train/Learning_Rate', current_lr, epoch)
@@ -323,7 +302,6 @@ def main():
         last_checkpoint = {
             'epoch': epoch+1,
             'image_encoder_state_dict': get_state_dict(image_encoder),
-            'pointcloud_encoder_state_dict': get_state_dict(pointcloud_encoder),
             'optimizer_state_dict': optimizer.state_dict(),
             'loss': avg_total_loss
         }
@@ -335,7 +313,6 @@ def main():
             best_checkpoint = {
                 'epoch': epoch+1,
                 'image_encoder_state_dict': get_state_dict(image_encoder),
-                'pointcloud_encoder_state_dict': get_state_dict(pointcloud_encoder),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': best_total_loss
             }
@@ -348,16 +325,8 @@ def main():
     logging.info(f"日志保存位置: {log_dir}")
     logging.info(f"模型检查点保存位置: {checkpoint_dir}")
     
-    # 输出点云加载的最终统计信息
-    if hasattr(dataloader.dataset, 'total_pointcloud_attempts') and hasattr(dataloader.dataset, 'pointcloud_load_failures'):
-        total_attempts = dataloader.dataset.total_pointcloud_attempts
-        failed_loads = dataloader.dataset.pointcloud_load_failures
-        logging.info("\n=== 点云加载最终统计信息 ===")
-        logging.info(f"总尝试加载次数: {total_attempts}")
-        logging.info(f"加载失败次数: {failed_loads}")
-        if total_attempts > 0:
-            success_rate = ((total_attempts - failed_loads) / total_attempts) * 100
-            logging.info(f"加载成功率: {success_rate:.2f}%")
+    # 训练完成后的清理工作
+    logging.info("训练完成，所有资源已释放")
     
     # 关闭SummaryWriter
     if writer is not None:
