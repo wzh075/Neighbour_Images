@@ -1,0 +1,380 @@
+2026-01-13 10:45:19,041 - INFO - 开始无监督跨模态对比学习训练
+2026-01-13 10:45:19,041 - INFO - 命令行参数: {'config': '../DataLoader/config.yaml', 'epochs': 100, 'batch_size': 32, 'lr': 0.0001, 'device': 'cuda', 'gpus': '3,1', 'num_workers': 4, 'log_dir': '../Log', 'checkpoint_dir': '../Checkpoints', 'freeze_backbone': True, 'lambda_gen': 1.0}
+2026-01-13 10:45:19,090 - INFO - 使用的显卡ID: [3, 1]
+2026-01-13 10:45:19,090 - INFO - 使用设备: cuda
+2026-01-13 10:45:19,090 - INFO - 创建数据加载器...
+2026-01-13 10:45:23,232 - INFO - 数据加载器创建完成，训练样本数: 12311, 批次大小: 32, 批次数量: 384
+2026-01-13 10:45:23,287 - INFO - 
+=== Batch Size 建议 ===
+2026-01-13 10:45:23,288 - INFO - 当前设置: batch_size=32, 使用显卡数=2
+2026-01-13 10:45:23,288 - INFO - 注意：在multi_view_visual_encoder.py中，实际传入Backbone的图片数量会被放大为 B * N * NUM_NEIGHBOURS
+2026-01-13 10:45:23,288 - INFO - 例如：如果N=4, NUM_NEIGHBOURS=5，那么每张显卡需要处理的图片数为: (16 * 4 * 5) / 2 = 160.0张
+2026-01-13 10:45:23,288 - INFO - 
+建议：在多卡环境下，您可以将batch size设置为 16 ~ 32
+2026-01-13 10:45:23,288 - INFO - 这样每张显卡处理的实际图片数量会更合理，减少显存压力
+2026-01-13 10:45:23,288 - INFO - 初始化模型...
+2026-01-13 10:45:23,946 - INFO - 是否冻结ResNet Backbone: True
+2026-01-13 10:45:23,947 - INFO - 检测到 2 张可用显卡，使用DataParallel...
+2026-01-13 10:45:23,949 - INFO - 模型已使用DataParallel包装
+2026-01-13 10:45:24,913 - INFO - 开始训练...
+2026-01-13 10:45:24,913 - INFO - Epoch 1/100
+2026-01-13 10:45:29,301 - ERROR - 批次处理错误 (Epoch 1, Batch 1): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:29,302 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:29,972 - ERROR - 批次处理错误 (Epoch 1, Batch 2): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:29,972 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:30,638 - ERROR - 批次处理错误 (Epoch 1, Batch 3): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:30,639 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:31,282 - ERROR - 批次处理错误 (Epoch 1, Batch 4): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:31,282 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:31,937 - ERROR - 批次处理错误 (Epoch 1, Batch 5): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:31,938 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:32,623 - ERROR - 批次处理错误 (Epoch 1, Batch 6): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:32,624 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:33,301 - ERROR - 批次处理错误 (Epoch 1, Batch 7): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:33,301 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:33,948 - ERROR - 批次处理错误 (Epoch 1, Batch 8): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:33,949 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:34,599 - ERROR - 批次处理错误 (Epoch 1, Batch 9): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:34,600 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:35,307 - ERROR - 批次处理错误 (Epoch 1, Batch 10): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:35,307 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:35,978 - ERROR - 批次处理错误 (Epoch 1, Batch 11): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:35,978 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:36,653 - ERROR - 批次处理错误 (Epoch 1, Batch 12): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:36,653 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:37,297 - ERROR - 批次处理错误 (Epoch 1, Batch 13): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:37,298 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:37,977 - ERROR - 批次处理错误 (Epoch 1, Batch 14): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:37,977 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:38,654 - ERROR - 批次处理错误 (Epoch 1, Batch 15): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:38,654 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:39,330 - ERROR - 批次处理错误 (Epoch 1, Batch 16): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:39,330 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:39,977 - ERROR - 批次处理错误 (Epoch 1, Batch 17): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:39,977 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:40,656 - ERROR - 批次处理错误 (Epoch 1, Batch 18): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:40,657 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:41,328 - ERROR - 批次处理错误 (Epoch 1, Batch 19): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:41,328 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:42,003 - ERROR - 批次处理错误 (Epoch 1, Batch 20): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:42,003 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:42,648 - ERROR - 批次处理错误 (Epoch 1, Batch 21): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:42,648 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:43,327 - ERROR - 批次处理错误 (Epoch 1, Batch 22): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:43,328 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:44,005 - ERROR - 批次处理错误 (Epoch 1, Batch 23): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:44,005 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:44,685 - ERROR - 批次处理错误 (Epoch 1, Batch 24): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:44,685 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:45,331 - ERROR - 批次处理错误 (Epoch 1, Batch 25): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:45,332 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:46,010 - ERROR - 批次处理错误 (Epoch 1, Batch 26): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:46,011 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:46,684 - ERROR - 批次处理错误 (Epoch 1, Batch 27): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:46,684 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:47,357 - ERROR - 批次处理错误 (Epoch 1, Batch 28): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:47,357 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:48,004 - ERROR - 批次处理错误 (Epoch 1, Batch 29): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:48,005 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+
+2026-01-13 10:45:48,683 - ERROR - 批次处理错误 (Epoch 1, Batch 30): grad can be implicitly created only for scalar outputs
+2026-01-13 10:45:48,683 - ERROR - Traceback (most recent call last):
+  File "train.py", line 246, in main
+    total_loss_tensor.backward()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_tensor.py", line 488, in backward
+    torch.autograd.backward(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 190, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/autograd/__init__.py", line 85, in _make_grads
+    raise RuntimeError("grad can be implicitly created only for scalar outputs")
+RuntimeError: grad can be implicitly created only for scalar outputs
+

@@ -39,7 +39,6 @@ class RetrievalEngine:
             # 加载特征
             self.refined_view_feats = torch.from_numpy(f['refined_view_feats'][:]).to(self.device)
             self.global_image_feats = torch.from_numpy(f['global_image_feats'][:]).to(self.device)
-            self.global_point_feats = torch.from_numpy(f['global_point_feats'][:]).to(self.device)
             
             # 加载元数据
             self.object_ids = [obj_id.decode('utf-8') for obj_id in f['object_ids'][:]]
@@ -398,8 +397,6 @@ class RetrievalEngine:
         
         results.append(self.run_view_to_global_image())
         results.append(self.run_view_to_view())
-        results.append(self.run_view_to_point_cloud())
-        results.append(self.run_global_image_to_point_cloud())
         
         return results
     

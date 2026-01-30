@@ -14,7 +14,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 导入自定义模块
 from DataLoader.data_loader import ModelNet40NeighbourDataset, load_config
 from Models.multi_view_visual_encoder import MultiViewVisualEncoder
-from Models.pointcloud_encoder import PointCloudEncoder
 
 def setup_logging():
     """设置日志系统"""
@@ -107,7 +106,6 @@ def extract_features(args):
     # 初始化模型
     logging.info("初始化模型...")
     image_encoder = MultiViewVisualEncoder(feature_dim=1024)
-    pointcloud_encoder = PointCloudEncoder(feature_dim=1024)
     
     # 加载模型权重
     if args.checkpoint:
@@ -128,11 +126,9 @@ def extract_features(args):
             model.load_state_dict(state_dict)
     
     load_state_dict(image_encoder, checkpoint['image_encoder_state_dict'])
-    load_state_dict(pointcloud_encoder, checkpoint['pointcloud_encoder_state_dict'])
     
     # 移动模型到设备并设置为评估模式
     image_encoder = image_encoder.to(device).eval()
-    pointcloud_encoder = pointcloud_encoder.to(device).eval()
     
     logging.info("模型加载完成")
     
@@ -143,7 +139,6 @@ def extract_features(args):
     # 准备特征存储
     all_refined_view_feats = []
     all_global_image_feats = []
-    all_global_point_feats = []
     all_object_ids = []
     all_categories = []
     
@@ -151,23 +146,16 @@ def extract_features(args):
     logging.info("开始提取特征...")
     with torch.no_grad():
         for batch_idx, batch in enumerate(tqdm(dataloader, desc="提取特征")):
-            # 过滤无效数据（点云为None的情况）
-            if batch['pointcloud'] is None:
-                continue
-            
             # 将数据移动到设备
             for view_name in batch['views']:
                 batch['views'][view_name] = batch['views'][view_name].to(device)
-            batch['pointcloud'] = batch['pointcloud'].to(device)
             
             # 提取特征
             refined_view_feats, global_image_feat = image_encoder(batch)
-            _, global_point_feat = pointcloud_encoder(batch)
             
             # 保存特征（移回CPU并转为numpy数组）
             all_refined_view_feats.append(refined_view_feats.cpu().numpy())
             all_global_image_feats.append(global_image_feat.cpu().numpy())
-            all_global_point_feats.append(global_point_feat.cpu().numpy())
             
             # 保存元数据
             all_object_ids.extend(batch['object_id'])
@@ -177,12 +165,10 @@ def extract_features(args):
     logging.info("合并特征数组...")
     refined_view_feats = np.concatenate(all_refined_view_feats, axis=0)
     global_image_feats = np.concatenate(all_global_image_feats, axis=0)
-    global_point_feats = np.concatenate(all_global_point_feats, axis=0)
     
     logging.info(f"特征提取完成：")
     logging.info(f"  - Refined view features shape: {refined_view_feats.shape}")
     logging.info(f"  - Global image features shape: {global_image_feats.shape}")
-    logging.info(f"  - Global point cloud features shape: {global_point_feats.shape}")
     logging.info(f"  - Total valid samples: {len(all_object_ids)}")
     
     # 创建Embedding文件夹
@@ -196,7 +182,6 @@ def extract_features(args):
     with h5py.File(feature_file, 'w') as f:
         f.create_dataset('refined_view_feats', data=refined_view_feats, dtype='float32')
         f.create_dataset('global_image_feats', data=global_image_feats, dtype='float32')
-        f.create_dataset('global_point_feats', data=global_point_feats, dtype='float32')
         
         # 保存字符串数据
         f.create_dataset('object_ids', data=np.array(all_object_ids, dtype='S'))

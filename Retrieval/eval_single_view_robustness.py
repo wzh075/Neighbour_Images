@@ -35,7 +35,11 @@ def load_models(device, checkpoint_path):
         else:
             model.load_state_dict(state_dict)
 
-    load_state_dict(image_encoder, checkpoint['image_encoder_state_dict'])
+    if 'image_encoder_state_dict' in checkpoint:
+        load_state_dict(image_encoder, checkpoint['image_encoder_state_dict'])
+    else:
+        # 兼容只保存了模型 state_dict 而没有保存完整 checkpoint 的情况
+        load_state_dict(image_encoder, checkpoint)
 
     image_encoder = image_encoder.to(device).eval()
     return image_encoder

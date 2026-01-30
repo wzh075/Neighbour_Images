@@ -1,0 +1,1502 @@
+2026-01-13 20:45:39,407 - INFO - 开始无监督跨模态对比学习训练
+2026-01-13 20:45:39,407 - INFO - 命令行参数: {'config': '../DataLoader/config.yaml', 'epochs': 100, 'batch_size': 128, 'lr': 0.0001, 'device': 'cuda', 'gpus': '0,1,2,3', 'num_workers': 4, 'log_dir': '../Log', 'checkpoint_dir': '../Checkpoints', 'freeze_backbone': True, 'lambda_gen': 1.0}
+2026-01-13 20:45:39,454 - INFO - 使用的显卡ID: [0, 1, 2, 3]
+2026-01-13 20:45:39,455 - INFO - 使用设备: cuda
+2026-01-13 20:45:39,455 - INFO - 创建数据加载器...
+2026-01-13 20:45:43,999 - INFO - 数据加载器创建完成，训练样本数: 12311, 批次大小: 128, 批次数量: 96
+2026-01-13 20:45:44,031 - INFO - 
+=== Batch Size 建议 ===
+2026-01-13 20:45:44,031 - INFO - 当前设置: batch_size=128, 使用显卡数=4
+2026-01-13 20:45:44,031 - INFO - 注意：在multi_view_visual_encoder.py中，实际传入Backbone的图片数量会被放大为 B * N * NUM_NEIGHBOURS
+2026-01-13 20:45:44,031 - INFO - 例如：如果N=4, NUM_NEIGHBOURS=5，那么每张显卡需要处理的图片数为: (16 * 4 * 5) / 4 = 80.0张
+2026-01-13 20:45:44,031 - INFO - 
+建议：在多卡环境下，您可以将batch size设置为 32 ~ 128
+2026-01-13 20:45:44,031 - INFO - 这样每张显卡处理的实际图片数量会更合理，减少显存压力
+2026-01-13 20:45:44,031 - INFO - 初始化模型...
+2026-01-13 20:45:44,805 - INFO - 是否冻结ResNet Backbone: True
+2026-01-13 20:45:44,805 - INFO - 检测到 4 张可用显卡，使用DataParallel...
+2026-01-13 20:45:44,808 - INFO - 模型已使用DataParallel包装
+2026-01-13 20:45:45,857 - INFO - 开始训练...
+2026-01-13 20:45:45,857 - INFO - Epoch 1/100
+2026-01-13 20:46:00,188 - ERROR - 批次处理错误 (Epoch 1, Batch 1): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.21 GiB already allocated; 606.50 MiB free; 6.67 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:00,189 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.21 GiB already allocated; 606.50 MiB free; 6.67 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:01,403 - ERROR - 批次处理错误 (Epoch 1, Batch 2): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.14 GiB free; 6.12 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:01,403 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.14 GiB free; 6.12 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:02,919 - ERROR - 批次处理错误 (Epoch 1, Batch 3): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:02,920 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:04,090 - ERROR - 批次处理错误 (Epoch 1, Batch 4): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:04,091 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:05,581 - ERROR - 批次处理错误 (Epoch 1, Batch 5): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:05,581 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:07,086 - ERROR - 批次处理错误 (Epoch 1, Batch 6): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:07,086 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.50 GiB free; 5.76 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:08,889 - ERROR - 批次处理错误 (Epoch 1, Batch 7): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:08,891 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:10,159 - ERROR - 批次处理错误 (Epoch 1, Batch 8): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:10,159 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:11,702 - ERROR - 批次处理错误 (Epoch 1, Batch 9): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:11,702 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:13,165 - ERROR - 批次处理错误 (Epoch 1, Batch 10): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:13,166 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:14,693 - ERROR - 批次处理错误 (Epoch 1, Batch 11): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:14,694 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:16,142 - ERROR - 批次处理错误 (Epoch 1, Batch 12): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:16,143 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:17,635 - ERROR - 批次处理错误 (Epoch 1, Batch 13): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:17,636 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:19,227 - ERROR - 批次处理错误 (Epoch 1, Batch 14): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:19,228 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:20,792 - ERROR - 批次处理错误 (Epoch 1, Batch 15): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:20,792 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:22,328 - ERROR - 批次处理错误 (Epoch 1, Batch 16): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:22,328 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:23,804 - ERROR - 批次处理错误 (Epoch 1, Batch 17): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:23,804 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:25,344 - ERROR - 批次处理错误 (Epoch 1, Batch 18): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:25,345 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+
+2026-01-13 20:46:26,884 - ERROR - 批次处理错误 (Epoch 1, Batch 19): Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+2026-01-13 20:46:26,884 - ERROR - Traceback (most recent call last):
+  File "train.py", line 234, in main
+    outputs = image_encoder(batch, mode='train_with_gen')
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 171, in forward
+    outputs = self.parallel_apply(replicas, inputs, kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/data_parallel.py", line 181, in parallel_apply
+    return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 89, in parallel_apply
+    output.reraise()
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/_utils.py", line 543, in reraise
+    raise exception
+torch.cuda.OutOfMemoryError: Caught OutOfMemoryError in replica 3 on device 3.
+Original Traceback (most recent call last):
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 64, in _worker
+    output = module(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/data1/Wuzhihe/Neighbour_Images/Models/multi_view_visual_encoder.py", line 197, in forward
+    backbone_feats = self.backbone(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/resnet.py", line 158, in forward
+    identity = self.downsample(x)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
+    return F.batch_norm(
+  File "/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torch/nn/functional.py", line 2450, in batch_norm
+    return torch.batch_norm(
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.91 GiB (GPU 3; 10.75 GiB total capacity; 5.20 GiB already allocated; 1.52 GiB free; 5.74 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+

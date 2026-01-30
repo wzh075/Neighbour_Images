@@ -207,7 +207,7 @@ class MultiViewVisualEncoder(nn.Module):
                 param.requires_grad = True
             print(f"All parameters (including ResNet Backbone) will be trained.")
 
-    def forward(self, batch, mode='default'):
+    def forward(self, batch, mode='default', compute_gen_loss=True):
         # Input: batch containing 'views' dictionary
         views_dict = batch['views']
         
@@ -277,7 +277,11 @@ class MultiViewVisualEncoder(nn.Module):
         if mode == 'train_with_gen':
             B, N, D = view_feats.size()
             device = view_feats.device
-            if N < 2:
+            
+            if not compute_gen_loss:
+                # 跳过生成器计算，直接返回0.0
+                loss_gen = torch.tensor(0.0, device=device)
+            elif N < 2:
                 loss_gen = torch.tensor(0.0, device=device)
             else:
                 s = torch.randint(0, N, (B,), device=device)
@@ -289,6 +293,11 @@ class MultiViewVisualEncoder(nn.Module):
                 target_pose_emb = self.view_embedding(t)
                 pred_feat = self.view_generator(source_feat, target_pose_emb)
                 loss_gen = torch.mean((pred_feat - target_real) ** 2)
+            
+            # Ensure loss_gen is a 1-dim tensor for DataParallel gathering
+            if loss_gen.dim() == 0:
+                loss_gen = loss_gen.unsqueeze(0)
+                
             return refined_view_feats, global_image_feat, loss_gen
         return refined_view_feats, global_image_feat
 
