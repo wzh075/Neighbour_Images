@@ -125,7 +125,12 @@ def extract_features(args):
         else:
             model.load_state_dict(state_dict)
     
-    load_state_dict(image_encoder, checkpoint['image_encoder_state_dict'])
+    if 'image_encoder_state_dict' in checkpoint:
+        state_dict = checkpoint['image_encoder_state_dict']
+    else:
+        state_dict = checkpoint
+        
+    load_state_dict(image_encoder, state_dict)
     
     # 移动模型到设备并设置为评估模式
     image_encoder = image_encoder.to(device).eval()
