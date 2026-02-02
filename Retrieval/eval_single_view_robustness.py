@@ -2,9 +2,6 @@ import os
 import sys
 import argparse
 import logging
-import copy
-import h5py
-import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -123,32 +120,110 @@ def run_eval(args):
     else:
         checkpoint_path = find_latest_checkpoint('../Checkpoints')
     image_encoder = load_models(device, checkpoint_path)
-    with h5py.File(args.feature_file, 'r') as f:
-        gallery_feats = torch.from_numpy(f['global_image_feats'][:]).float().to(device)
-        gallery_ids = [x.decode('utf-8') for x in f['object_ids'][:]]
-        gallery_cats = [x.decode('utf-8') for x in f['categories'][:]]
-    gallery_feats = gallery_feats / gallery_feats.norm(dim=1, keepdim=True)
     dataloader = create_dataloader(config, args.batch_size, args.num_workers)
-    results = {}
+    
+    # 生成 Gallery 特征
+    gallery_feats = []
+    gallery_ids = []
     with torch.no_grad():
-        for batch in tqdm(dataloader, desc="推理"):
+        for batch in tqdm(dataloader, desc="生成 Gallery 特征"):
+            # 将所有视点图像移动到设备
             for view_name in batch['views']:
                 batch['views'][view_name] = batch['views'][view_name].to(device)
+            
+            # 获取排序后的视点名称
             view_keys = list(batch['views'].keys())
             try:
                 view_keys = sorted(view_keys, key=lambda x: int(x.split('_')[-1]))
             except Exception:
                 view_keys = sorted(view_keys)
-            for idx, source_view in enumerate(view_keys):
-                modified_batch = copy.deepcopy(batch)
-                source_tensor = batch['views'][source_view]
-                modified_views = {k: source_tensor for k in view_keys}
-                modified_batch['views'] = modified_views
-                _, global_image_feat = image_encoder(modified_batch)
-                if idx not in results:
-                    results[idx] = {'img_feats': [], 'ids': []}
-                results[idx]['img_feats'].append(global_image_feat.cpu())
-                results[idx]['ids'].extend(batch['object_id'])
+            num_views = len(view_keys)
+            
+            # 提取所有视点的真实特征
+            view_tensors = [batch['views'][view_name] for view_name in view_keys]
+            x = torch.stack(view_tensors, dim=0).permute(1, 0, 2, 3, 4, 5)
+            B, N, NUM_NEIGHBOURS, C, H, W = x.size()
+            x = x.reshape(B * N * NUM_NEIGHBOURS, C, H, W)
+            backbone_feats = image_encoder.backbone(x)
+            backbone_feats = backbone_feats.view(backbone_feats.size(0), -1)
+            backbone_feats = backbone_feats.view(B, N, NUM_NEIGHBOURS, -1)
+            backbone_feats = image_encoder.projection(backbone_feats)
+            real_view_feats = backbone_feats.max(dim=2)[0]  # (B, N, D)
+            
+            # 使用所有真实视点特征生成全局特征
+            _, global_feat = image_encoder.set_transformer(real_view_feats)
+            global_feat = global_feat.squeeze(1)  # (B, D)
+            gallery_feats.append(global_feat.cpu())
+            gallery_ids.extend(batch['object_id'])
+    
+    # 拼接 Gallery 特征
+    gallery_feats = torch.cat(gallery_feats, dim=0)
+    gallery_feats = gallery_feats / gallery_feats.norm(dim=1, keepdim=True)
+    results = {}
+    with torch.no_grad():
+        for batch in tqdm(dataloader, desc="推理"):
+            # 将所有视点图像移动到设备
+            for view_name in batch['views']:
+                batch['views'][view_name] = batch['views'][view_name].to(device)
+            
+            # 获取排序后的视点名称
+            view_keys = list(batch['views'].keys())
+            try:
+                view_keys = sorted(view_keys, key=lambda x: int(x.split('_')[-1]))
+            except Exception:
+                view_keys = sorted(view_keys)
+            num_views = len(view_keys)
+            
+            # Step A: 提取所有视点的真实特征
+            # 首先通过完整前向传播获取真实的view_feats
+            # 注意：我们需要修改模型调用方式，获取中间特征
+            # 这里我们先获取原始的view_feats
+            # 模拟模型前向传播中的view_feats计算过程
+            view_tensors = [batch['views'][view_name] for view_name in view_keys]
+            x = torch.stack(view_tensors, dim=0).permute(1, 0, 2, 3, 4, 5)
+            B, N, NUM_NEIGHBOURS, C, H, W = x.size()
+            x = x.reshape(B * N * NUM_NEIGHBOURS, C, H, W)
+            backbone_feats = image_encoder.backbone(x)
+            backbone_feats = backbone_feats.view(backbone_feats.size(0), -1)
+            backbone_feats = backbone_feats.view(B, N, NUM_NEIGHBOURS, -1)
+            backbone_feats = image_encoder.projection(backbone_feats)
+            real_view_feats = backbone_feats.max(dim=2)[0]  # (B, N, D)
+            
+            # Step B: 遍历每一个视点作为"源 (Source)"
+            for source_idx, source_view in enumerate(view_keys):
+                # 构建幻觉集合 (Hallucinated Set)
+                hallucinated_view_feats = []
+                
+                # 遍历每一个目标位置
+                for target_idx in range(num_views):
+                    if target_idx == source_idx:
+                        # 如果是源视点，使用真实特征
+                        hallucinated_view_feats.append(real_view_feats[:, target_idx, :].unsqueeze(1))
+                    else:
+                        # 如果是目标视点，使用生成器生成特征
+                        # 获取源视点特征
+                        source_feat = real_view_feats[:, source_idx, :]
+                        # 获取目标视点的嵌入
+                        target_pose_emb = image_encoder.view_embedding(torch.tensor([target_idx], device=device).repeat(B))
+                        # 生成目标视点特征
+                        generated_feat = image_encoder.view_generator(source_feat, target_pose_emb)
+                        hallucinated_view_feats.append(generated_feat.unsqueeze(1))
+                
+                # 拼接幻觉集合
+                hallucinated_view_feats = torch.cat(hallucinated_view_feats, dim=1)  # (B, N, D)
+                
+                # Step C: 使用Set Transformer聚合特征
+                # 调用set_transformer获取全局特征
+                _, aggregated_feat = image_encoder.set_transformer(hallucinated_view_feats)
+                global_image_feat = aggregated_feat.squeeze(1)  # (B, D)
+                
+                # 保存结果
+                if source_idx not in results:
+                    results[source_idx] = {'img_feats': [], 'ids': []}
+                results[source_idx]['img_feats'].append(global_image_feat.cpu())
+                results[source_idx]['ids'].extend(batch['object_id'])
+    
+    # 计算评估结果
     report = []
     for idx in sorted(results.keys()):
         img_feats = torch.cat(results[idx]['img_feats'], dim=0)
@@ -156,7 +231,9 @@ def run_eval(args):
         sim = compute_cosine_similarity(img_feats, gallery_feats, device, args.eval_batch_size)
         r1, r5, r10 = evaluate_recall(sim, ids, gallery_ids)
         report.append((idx, r1, r5, r10))
-    print("\n=== 单视点输入鲁棒性评估 ===")
+    
+    # 输出结果
+    print("\n=== 单视点输入鲁棒性评估 (Single-to-Global Hallucination) ===")
     print(f"{'输入源视点':<12} {'R@1':>8} {'R@5':>8} {'R@10':>8}")
     for idx, r1, r5, r10 in report:
         print(f"View {idx:<6} {r1*100:>7.2f}% {r5*100:>7.2f}% {r10*100:>7.2f}%")
@@ -171,7 +248,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description='单视点输入鲁棒性评估')
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
     parser.add_argument('--checkpoint', type=str, default=None)
-    parser.add_argument('--feature_file', type=str, default='../Embedding/features_all.h5')
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cuda')
@@ -180,6 +256,7 @@ def parse_args():
 
 
 if __name__ == '__main__':
+    import numpy as np
     args = parse_args()
     run_eval(args)
 
