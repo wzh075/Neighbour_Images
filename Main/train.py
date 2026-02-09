@@ -7,7 +7,7 @@ if 'torch' in sys.modules:
     print("Warning: 'torch' module was imported before GPU setup! CUDA_VISIBLE_DEVICES might not work.")
 
 # 手动解析参数，确保在 import torch 之前正确设置环境变量
-gpu_ids = '1,2'
+gpu_ids = '0,1,2,3'
 device_type = 'cuda'
 
 print(f"Debug: sys.argv = {sys.argv}")
@@ -116,6 +116,7 @@ def set_training_stage(model, stage, args):
     logging.info(f"=== 切换到训练阶段 {stage} ===")
 
     if stage == 1:
+        # 第一阶段：不冻结参数
         if not args.freeze_backbone:
             for p in raw_model.backbone.parameters(): p.requires_grad = True
         for p in raw_model.projection.parameters(): p.requires_grad = True
@@ -126,6 +127,7 @@ def set_training_stage(model, stage, args):
         loss_weights = {'intra': 1.0, 'gen': 0.0}
 
     elif stage == 2:
+        # 第二阶段：冻结参数
         for p in raw_model.view_generator.parameters(): p.requires_grad = True
         for p in raw_model.view_embedding.parameters(): p.requires_grad = True
 
@@ -134,7 +136,15 @@ def set_training_stage(model, stage, args):
         loss_weights = {'intra': 0.0, 'gen': args.lambda_gen}
 
     else:
-        for p in raw_model.parameters(): p.requires_grad = True
+        # 第三阶段：不冻结 Set Transformer 部分的参数，冻结 ResNet 部分的参数
+        # 冻结 ResNet
+        for p in raw_model.backbone.parameters(): p.requires_grad = False
+        # 不冻结其他部分
+        for p in raw_model.projection.parameters(): p.requires_grad = True
+        for p in raw_model.set_transformer.parameters(): p.requires_grad = True
+        for p in raw_model.view_generator.parameters(): p.requires_grad = True
+        for p in raw_model.view_embedding.parameters(): p.requires_grad = True
+
         params = [p for p in raw_model.parameters() if p.requires_grad]
         optimizer = optim.Adam(params, lr=args.lr * 0.1)
         loss_weights = {'intra': 1.0, 'gen': args.lambda_gen}
@@ -154,7 +164,8 @@ def main():
     parser.add_argument('--log_dir', type=str, default='../Log')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints')
     parser.add_argument('--freeze_backbone', action='store_true', default=True)
-    parser.add_argument('--lambda_gen', type=float, default=1.0)
+    parser.add_argument('--lambda_gen', type=float, default=0.3, help='生成损失的权重（降低）')
+    parser.add_argument('--lambda_cons', type=float, default=1.5, help='全局语义一致性损失的权重（提高）')
     args, _ = parser.parse_known_args()
 
     setup_seed(42)
@@ -195,14 +206,13 @@ def main():
     checkpoint_dir = os.path.join(args.checkpoint_dir, timestamp)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    stage_epochs = {1: int(args.epochs * 0.4), 2: int(args.epochs * 0.3)}
-    stage_epochs[3] = args.epochs - stage_epochs[1] - stage_epochs[2]
+    stage_epochs = {1: int(args.epochs * 0.6), 2: int(args.epochs * 0.4)}
 
     global_epoch = 0
     best_total_loss = float('inf')
     batch_counter = 0
 
-    for stage in [1, 2, 3]:
+    for stage in [1, 2]:
         optimizer, loss_weights = set_training_stage(image_encoder, stage, args)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
@@ -215,14 +225,29 @@ def main():
                     batch['views'][v] = batch['views'][v].to(device)
 
                 outputs = image_encoder(batch, mode='train_with_gen')
-                refined_view_feats, global_image_feat, loss_gen = outputs
+                
+                # 处理不同模式的返回值
+                if len(outputs) == 3:
+                    # 普通模式或 Stage 1
+                    refined_view_feats, global_image_feat, loss_gen = outputs
+                    global_real = None
+                    global_mixed = None
+                elif len(outputs) == 5:
+                    # Stage 2: 带有全局语义一致性约束
+                    refined_view_feats, global_image_feat, loss_gen, global_real, global_mixed = outputs
 
                 if isinstance(loss_gen, torch.Tensor) and loss_gen.dim() > 0:
                     loss_gen = loss_gen.mean()
 
+                # 计算全局语义一致性损失
+                loss_cons = torch.tensor(0.0, device=device)
+                if stage == 2 and global_mixed is not None and global_real is not None:
+                    # 使用余弦相似度损失
+                    loss_cons = 1.0 - torch.nn.functional.cosine_similarity(global_mixed, global_real).mean()
+
                 loss_dict = loss_module(refined_view_feats, global_image_feat)
                 total_loss = loss_weights['intra'] * loss_dict['total_loss'] + \
-                             loss_weights['gen'] * loss_gen
+                             loss_weights['gen'] * (loss_gen + args.lambda_cons * loss_cons)
 
                 optimizer.zero_grad()
                 total_loss.backward()

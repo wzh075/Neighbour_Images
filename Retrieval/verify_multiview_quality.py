@@ -6,6 +6,14 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
+import random
+
+# 设置随机种子以确保结果可重现
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DataLoader.data_loader import load_config
@@ -181,30 +189,24 @@ def run_evaluation(args):
     logging.info(f"Test dataset loaded with {len(dataloader.dataset)} samples")
     
     # 初始化指标累积器
-    total_cosine_sim = 0.0
-    total_l2_dist = 0.0
-    total_pairs = 0
+    input_count_stats = {}
+    for k in args.input_counts:
+        input_count_stats[k] = {
+            'gen_cosine_sim': 0.0,
+            'gen_l2_dist': 0.0,
+            'gen_pairs': 0,
+            'query_feats': [],
+            'query_ids': [],
+            'query_categories': []
+        }
     
-    # 新增：单视点全局特征与全视点全局特征比较指标
-    total_global_cosine_sim = 0.0
-    total_global_l2_dist = 0.0
-    total_global_pairs = 0
-    
-    # 可选：按视点跨度统计
-    span_stats = {}
-    # 新增：按源视点统计全局特征相似度
-    source_view_stats = {}
-    
-    # 新增：收集 Gallery 和 Query 特征用于检索测试
+    # 收集 Gallery 特征和 ID
     gallery_feats = []
     gallery_ids = []
     gallery_categories = []
-    query_feats = {}
-    query_ids = {}
-    query_categories = {}
     
     with torch.no_grad():
-        for batch_idx, batch in enumerate(tqdm(dataloader, desc="评估生成器质量")):
+        for batch_idx, batch in enumerate(tqdm(dataloader, desc="评估多视点质量")):
             # 将所有视点图像移动到设备
             for view_name in batch['views']:
                 batch['views'][view_name] = batch['views'][view_name].to(device)
@@ -231,14 +233,13 @@ def run_evaluation(args):
             backbone_feats = model.projection(backbone_feats)
             
             # 邻域图融合，得到单个视点的特征
-            real_feats = backbone_feats.max(dim=2)[0]  # (B, N, D)
+            all_real_feats = backbone_feats.max(dim=2)[0]  # (B, N, D)
             
-            # 新增：提取全视点真实全局特征
-            # 使用 Set Transformer 聚合所有真实视点特征
-            _, real_global_feat = model.set_transformer(real_feats)
+            # 提取全视点真实全局特征
+            _, real_global_feat = model.set_transformer(all_real_feats)
             real_global_feat = real_global_feat.squeeze(1)  # (B, D)
             
-            # 新增：收集 Gallery 特征、ID 和类别
+            # 收集 Gallery 特征、ID 和类别
             gallery_feats.append(real_global_feat.cpu())
             gallery_ids.extend(batch['object_id'])
             if 'category' in batch:
@@ -246,185 +247,112 @@ def run_evaluation(args):
             elif 'label' in batch:
                 gallery_categories.extend(batch['label'])
             
-            # Step B: 遍历生成对 (Source -> Target Pairs)
-            for source_idx in range(num_views):
-                # 新增：生成单视点全局特征
-                # 构建幻觉集合 (Hallucinated Set)
-                hallucinated_view_feats = []
-                for target_idx in range(num_views):
-                    if target_idx == source_idx:
-                        # 如果是源视点，使用真实特征
-                        hallucinated_view_feats.append(real_feats[:, target_idx, :].unsqueeze(1))
-                    else:
-                        # 如果是目标视点，使用生成器生成特征
+            # Step B: 循环测试不同的输入数量
+            for k in args.input_counts:
+                if k >= num_views:
+                    continue
+                
+                # 随机选择输入视点
+                input_indices = random.sample(range(num_views), k)
+                target_indices = [i for i in range(num_views) if i not in input_indices]
+                
+                # Step C: 多源幻觉生成与聚合
+                final_view_feats = []
+                gen_cosine_sum = 0.0
+                gen_l2_sum = 0.0
+                gen_count = 0
+                
+                # 填充真实特征
+                for i in range(num_views):
+                    if i in input_indices:
+                        final_view_feats.append(all_real_feats[:, i, :].unsqueeze(1))
+                
+                # 填充/生成缺失特征
+                for t_idx in target_indices:
+                    preds = []
+                    # 多源生成
+                    for s_idx in input_indices:
                         # 取源特征
-                        source_feat = real_feats[:, source_idx, :]
+                        source_feat = all_real_feats[:, s_idx, :]
                         # 取目标位姿嵌入
-                        target_pose_emb = model.view_embedding(torch.tensor([target_idx], device=device).repeat(B))
+                        target_pose_emb = model.view_embedding(torch.tensor([t_idx], device=device).repeat(B))
                         # 生成伪特征
                         fake_feat = model.view_generator(source_feat, target_pose_emb)
-                        hallucinated_view_feats.append(fake_feat.unsqueeze(1))
+                        preds.append(fake_feat)
+                    # 聚合策略
+                    agg_feat = torch.mean(torch.stack(preds), dim=0)
+                    final_view_feats.append(agg_feat.unsqueeze(1))
+                    
+                    # 生成质量统计
+                    real_target_feat = all_real_feats[:, t_idx, :]
+                    cosine_sim, l2_dist = compute_metrics(agg_feat, real_target_feat)
+                    gen_cosine_sum += cosine_sim * B
+                    gen_l2_sum += l2_dist * B
+                    gen_count += B
                 
-                # 拼接幻觉集合
-                hallucinated_view_feats = torch.cat(hallucinated_view_feats, dim=1)  # (B, N, D)
+                # 拼接最终的视点特征集合
+                final_view_feats = torch.cat(final_view_feats, dim=1)  # (B, N, D)
                 
-                # 使用 Set Transformer 聚合特征
-                _, hallucinated_global_feat = model.set_transformer(hallucinated_view_feats)
-                hallucinated_global_feat = hallucinated_global_feat.squeeze(1)  # (B, D)
+                # Step D: 全局特征提取与检索
+                _, pseudo_global_feat = model.set_transformer(final_view_feats)
+                pseudo_global_feat = pseudo_global_feat.squeeze(1)  # (B, D)
                 
-                # 新增：收集 Query 特征、ID 和类别
-                if source_idx not in query_feats:
-                    query_feats[source_idx] = []
-                    query_ids[source_idx] = []
-                    query_categories[source_idx] = []
-                query_feats[source_idx].append(hallucinated_global_feat.cpu())
-                query_ids[source_idx].extend(batch['object_id'])
+                # 累积生成质量指标
+                input_count_stats[k]['gen_cosine_sim'] += gen_cosine_sum
+                input_count_stats[k]['gen_l2_dist'] += gen_l2_sum
+                input_count_stats[k]['gen_pairs'] += gen_count
+                
+                # 收集 Query 特征、ID 和类别
+                input_count_stats[k]['query_feats'].append(pseudo_global_feat.cpu())
+                input_count_stats[k]['query_ids'].extend(batch['object_id'])
                 if 'category' in batch:
-                    query_categories[source_idx].extend(batch['category'])
+                    input_count_stats[k]['query_categories'].extend(batch['category'])
                 elif 'label' in batch:
-                    query_categories[source_idx].extend(batch['label'])
-                
-                # 新增：计算单视点全局特征与全视点真实全局特征的相似度
-                global_cosine_sim, global_l2_dist = compute_metrics(hallucinated_global_feat, real_global_feat)
-                
-                # 累积全局特征相似度指标
-                total_global_cosine_sim += global_cosine_sim * B
-                total_global_l2_dist += global_l2_dist * B
-                total_global_pairs += B
-                
-                # 按源视点统计全局特征相似度
-                if source_idx not in source_view_stats:
-                    source_view_stats[source_idx] = {'cosine': 0.0, 'l2': 0.0, 'count': 0}
-                source_view_stats[source_idx]['cosine'] += global_cosine_sim * B
-                source_view_stats[source_idx]['l2'] += global_l2_dist * B
-                source_view_stats[source_idx]['count'] += B
-                
-                # 原有：遍历目标视点，生成伪特征并与真实目标特征比较
-                for target_idx in range(num_views):
-                    if source_idx == target_idx:
-                        continue
-                    
-                    # 取源特征
-                    source_feat = real_feats[:, source_idx, :]
-                    
-                    # 取目标位姿嵌入
-                    target_pose_emb = model.view_embedding(torch.tensor([target_idx], device=device).repeat(B))
-                    
-                    # 生成伪特征
-                    fake_feat = model.view_generator(source_feat, target_pose_emb)
-                    
-                    # 取真实目标特征
-                    real_target_feat = real_feats[:, target_idx, :]
-                    
-                    # Step C: 计算指标
-                    cosine_sim, l2_dist = compute_metrics(fake_feat, real_target_feat)
-                    
-                    # 累积指标
-                    total_cosine_sim += cosine_sim * B
-                    total_l2_dist += l2_dist * B
-                    total_pairs += B
-                    
-                    # 可选：按视点跨度统计
-                    span = abs(source_idx - target_idx)
-                    if span not in span_stats:
-                        span_stats[span] = {'cosine': 0.0, 'l2': 0.0, 'count': 0}
-                    span_stats[span]['cosine'] += cosine_sim * B
-                    span_stats[span]['l2'] += l2_dist * B
-                    span_stats[span]['count'] += B
+                    input_count_stats[k]['query_categories'].extend(batch['label'])
     
-    # 计算平均指标
-    mean_cosine_sim = total_cosine_sim / total_pairs
-    mean_l2_dist = total_l2_dist / total_pairs
+    # 拼接 Gallery 特征
+    gallery_feats = torch.cat(gallery_feats, dim=0)
     
-    # 计算全局特征相似度平均指标
-    mean_global_cosine_sim = total_global_cosine_sim / total_global_pairs
-    mean_global_l2_dist = total_global_l2_dist / total_global_pairs
-    
-    # 新增：执行检索测试
-    retrieval_results = []
-    if gallery_feats and query_feats:
-        # 拼接 Gallery 特征
-        gallery_feats = torch.cat(gallery_feats, dim=0)
+    # 执行检索测试并打印结果
+    for k in args.input_counts:
+        stats = input_count_stats[k]
+        if not stats['query_feats']:
+            continue
         
-        # 对每个源视点执行检索测试
-        for source_idx in sorted(query_feats.keys()):
-            # 拼接 Query 特征
-            source_query_feats = torch.cat(query_feats[source_idx], dim=0)
-            source_query_ids = query_ids[source_idx]
-            source_query_categories = query_categories.get(source_idx, [])
-            
-            # 计算相似度矩阵
-            similarity_matrix = compute_cosine_similarity(source_query_feats, gallery_feats, device, args.batch_size)
-            
-            # 计算 Recall 和相似度统计
-            r1, r5, r10, mean_max_sim, mean_min_sim, instance_acc, class_acc = evaluate_recall(
-                similarity_matrix, source_query_ids, source_query_categories, gallery_ids, gallery_categories
-            )
-            retrieval_results.append((source_idx, r1, r5, r10, mean_max_sim, mean_min_sim, instance_acc, class_acc))
-    
-    # 打印结果
-    print("\n=== 视点生成器质量评估结果 ===")
-    print(f"平均余弦相似度: {mean_cosine_sim:.4f}")
-    print(f"平均 L2 距离: {mean_l2_dist:.4f}")
-    print(f"总测试样本对: {total_pairs}")
-    
-    # 打印按视点跨度统计的结果
-    if span_stats:
-        print("\n=== 按视点跨度统计 ===")
-        print(f"{'跨度':<6} {'余弦相似度':<12} {'L2 距离':<10}")
-        print("-" * 30)
-        for span in sorted(span_stats.keys()):
-            stats = span_stats[span]
-            span_cosine = stats['cosine'] / stats['count']
-            span_l2 = stats['l2'] / stats['count']
-            print(f"{span:<6} {span_cosine:.4f}        {span_l2:.4f}")
-    
-    # 新增：打印单视点全局特征与全视点真实全局特征的相似度结果
-    print("\n=== 单视点全局特征验证结果 ===")
-    print(f"平均余弦相似度: {mean_global_cosine_sim:.4f}")
-    print(f"平均 L2 距离: {mean_global_l2_dist:.4f}")
-    print(f"总测试样本对: {total_global_pairs}")
-    
-    # 打印按源视点统计的全局特征相似度结果
-    if source_view_stats:
-        print("\n=== 按源视点统计全局特征相似度 ===")
-        print(f"{'源视点':<6} {'余弦相似度':<12} {'L2 距离':<10}")
-        print("-" * 30)
-        for source_idx in sorted(source_view_stats.keys()):
-            stats = source_view_stats[source_idx]
-            source_cosine = stats['cosine'] / stats['count']
-            source_l2 = stats['l2'] / stats['count']
-            print(f"{source_idx:<6} {source_cosine:.4f}        {source_l2:.4f}")
-    
-    # 新增：打印检索测试结果
-    if retrieval_results:
-        print("\n=== 单视点检索全局特征测试结果 ===")
-        print(f"{'源视点':<6} {'R@1':<8} {'R@5':<8} {'R@10':<8} {'最高相似度':<10} {'最低相似度':<10} {'实例精度':<8} {'类别精度':<8}")
-        print("-" * 85)
-        for source_idx, r1, r5, r10, max_sim, min_sim, instance_acc, class_acc in retrieval_results:
-            print(f"{source_idx:<6} {r1*100:>7.2f}% {r5*100:>7.2f}% {r10*100:>7.2f}% {max_sim:>9.4f}     {min_sim:>9.4f} {instance_acc*100:>7.2f}% {class_acc*100:>7.2f}%")
+        # 计算生成质量平均指标
+        mean_gen_cosine = stats['gen_cosine_sim'] / stats['gen_pairs'] if stats['gen_pairs'] > 0 else 0.0
+        mean_gen_l2 = stats['gen_l2_dist'] / stats['gen_pairs'] if stats['gen_pairs'] > 0 else 0.0
         
-        # 计算平均 Recall 和相似度统计
-        if retrieval_results:
-            mean_r1 = np.mean([r[1] for r in retrieval_results])
-            mean_r5 = np.mean([r[2] for r in retrieval_results])
-            mean_r10 = np.mean([r[3] for r in retrieval_results])
-            mean_max_sim = np.mean([r[4] for r in retrieval_results])
-            mean_min_sim = np.mean([r[5] for r in retrieval_results])
-            mean_instance_acc = np.mean([r[6] for r in retrieval_results])
-            mean_class_acc = np.mean([r[7] for r in retrieval_results])
-            print(f"{'平均':<6} {mean_r1*100:>7.2f}% {mean_r5*100:>7.2f}% {mean_r10*100:>7.2f}% {mean_max_sim:>9.4f}     {mean_min_sim:>9.4f} {mean_instance_acc*100:>7.2f}% {mean_class_acc*100:>7.2f}%")
-            print(f"\nSingle-View Instance Retrieval Accuracy: {mean_instance_acc:.2%}")
-            print(f"Single-View Class Retrieval Accuracy: {mean_class_acc:.2%}")
+        # 拼接 Query 特征
+        query_feats = torch.cat(stats['query_feats'], dim=0)
+        query_ids = stats['query_ids']
+        query_categories = stats['query_categories']
+        
+        # 计算相似度矩阵
+        similarity_matrix = compute_cosine_similarity(query_feats, gallery_feats, device, args.batch_size)
+        
+        # 计算 Recall 和相似度统计
+        r1, r5, r10, mean_max_sim, mean_min_sim, instance_acc, class_acc = evaluate_recall(
+            similarity_matrix, query_ids, query_categories, gallery_ids, gallery_categories
+        )
+        
+        # 打印结果
+        print(f"\n--- Results for K={k} Input Views ---")
+        print(f"Avg Gen Cosine Sim: {mean_gen_cosine:.4f}")
+        print(f"Avg Gen L2 Dist: {mean_gen_l2:.4f}")
+        print(f"Retrieval Instance Accuracy: {instance_acc:.2%}")
+        print(f"Retrieval Class Accuracy: {class_acc:.2%}")
+        print(f"R@1: {r1:.2%}, R@5: {r5:.2%}, R@10: {r10:.2%}")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='视点生成器质量验证')
+    parser = argparse.ArgumentParser(description='多视点质量验证')
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
     parser.add_argument('--checkpoint', type=str, default=None)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--input_counts', type=int, nargs='+', default=[1, 2, 3], help='要测试的输入视点数量')
     return parser.parse_args()
 
 

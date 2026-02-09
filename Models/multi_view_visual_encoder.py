@@ -136,7 +136,9 @@ class MultiViewVisualEncoder(nn.Module):
         
         # Step 1: Initialize backbone
         if backbone_type == 'resnet50':
+            # 使用 ImageNet 预训练权重
             self.backbone = resnet50(pretrained=True)
+            print("Using default ImageNet pretrained weights for ResNet50")
         else:
             raise ValueError(f"Unsupported backbone type: {backbone_type}")
         
@@ -283,6 +285,7 @@ class MultiViewVisualEncoder(nn.Module):
                 loss_gen = torch.tensor(0.0, device=device)
             elif N < 2:
                 loss_gen = torch.tensor(0.0, device=device)
+                global_mixed = None
             else:
                 s = torch.randint(0, N, (B,), device=device)
                 t = torch.randint(0, N, (B,), device=device)
@@ -293,12 +296,22 @@ class MultiViewVisualEncoder(nn.Module):
                 target_pose_emb = self.view_embedding(t)
                 pred_feat = self.view_generator(source_feat, target_pose_emb)
                 loss_gen = torch.mean((pred_feat - target_real) ** 2)
+                
+                # === 新增: 全局语义一致性约束 ===
+                # 构建混合视点集
+                mixed_view_feats = view_feats.clone()
+                mixed_view_feats[b_idx, t] = pred_feat
+                
+                # 聚合混合特征
+                _, global_mixed = self.set_transformer(mixed_view_feats)
+                global_mixed = global_mixed.squeeze(1)  # (B, D)
             
             # Ensure loss_gen is a 1-dim tensor for DataParallel gathering
             if loss_gen.dim() == 0:
                 loss_gen = loss_gen.unsqueeze(0)
                 
-            return refined_view_feats, global_image_feat, loss_gen
+            # 更新返回值，加入 global_mixed
+            return refined_view_feats, global_image_feat, loss_gen, global_image_feat, global_mixed
         return refined_view_feats, global_image_feat
 
 
