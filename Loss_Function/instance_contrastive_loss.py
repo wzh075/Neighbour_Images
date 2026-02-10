@@ -32,6 +32,10 @@ class InstanceDualContrastiveLoss(nn.Module):
         self.temperature = temperature
         self.weights = weights
         
+        # 添加默认的方差损失权重
+        if 'lambda_var' not in self.weights:
+            self.weights['lambda_var'] = 0.0
+        
         # 定义投影头
         # 图像模态投影头（用于全局图像特征和精细化视点特征，共享权重）
         self.image_projection = nn.Sequential(
@@ -60,8 +64,20 @@ class InstanceDualContrastiveLoss(nn.Module):
         # 1. 特征投影与归一化
         # ----------------------
         
-        # 投影全局图像特征
-        projected_global_image = F.normalize(self.image_projection(global_image_feat), dim=-1)
+        # 投影全局图像特征（用于方差正则化）
+        z_global = self.image_projection(global_image_feat)
+        
+        # 计算方差正则化损失
+        loss_var = 0.0
+        if self.weights['lambda_var'] > 0.0:
+            # 计算Batch维度上的标准差，加上epsilon防止梯度爆炸
+            eps = 1e-4
+            std_global = torch.sqrt(z_global.var(dim=0) + eps)
+            # 使用Hinge Loss强制标准差至少为1
+            loss_var = torch.mean(F.relu(1.0 - std_global))
+        
+        # 归一化投影特征用于对比损失
+        projected_global_image = F.normalize(z_global, dim=-1)
         
         # 投影精细化视点特征
         # 将(B, N, D)变形为(B*N, D)以便批量处理
@@ -95,10 +111,15 @@ class InstanceDualContrastiveLoss(nn.Module):
         # ----------------------
         total_loss = self.weights['lambda_intra'] * loss_intra
         
+        # 添加方差正则化损失
+        if self.weights['lambda_var'] > 0.0:
+            total_loss += self.weights['lambda_var'] * loss_var
+        
         # 返回损失字典
         loss_dict = {
             'total_loss': total_loss,
-            'intra_view_loss': loss_intra
+            'intra_view_loss': loss_intra,
+            'var_loss': loss_var
         }
         
         return loss_dict

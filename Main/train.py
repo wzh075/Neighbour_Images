@@ -124,10 +124,15 @@ def set_training_stage(model, stage, args):
 
         params = [p for p in raw_model.parameters() if p.requires_grad]
         optimizer = optim.Adam(params, lr=args.lr)
-        loss_weights = {'intra': 1.0, 'gen': 0.0}
+        loss_weights = {'intra': args.lambda_intra, 'gen': 0.0}
 
     elif stage == 2:
-        # 第二阶段：冻结参数
+        # 第二阶段：冻结 ResNet 和 Set Transformer，仅训练生成器
+        # 冻结 ResNet 骨干网络
+        for p in raw_model.backbone.parameters(): p.requires_grad = False
+        # 冻结 Set Transformer 聚合网络
+        for p in raw_model.set_transformer.parameters(): p.requires_grad = False
+        # 仅开放生成器相关参数
         for p in raw_model.view_generator.parameters(): p.requires_grad = True
         for p in raw_model.view_embedding.parameters(): p.requires_grad = True
 
@@ -155,17 +160,18 @@ def set_training_stage(model, stage, args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=128, help='批次大小（减小以避免显存不足）')
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--device', type=str, default='cuda')
-    # parser.add_argument('--gpus', type=str, default='1,2')  # Handled at the top of the file
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--log_dir', type=str, default='../Log')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints')
-    parser.add_argument('--freeze_backbone', action='store_true', default=True)
-    parser.add_argument('--lambda_gen', type=float, default=0.3, help='生成损失的权重（降低）')
+    parser.add_argument('--freeze_backbone', action='store_true', default=True, help='是否冻结 ResNet 骨干网络（默认冻结）')
+    parser.add_argument('--lambda_gen', type=float, default=1.0, help='生成损失的权重（降低）')
     parser.add_argument('--lambda_cons', type=float, default=1.5, help='全局语义一致性损失的权重（提高）')
+    parser.add_argument('--lambda_intra', type=float, default=1.0, help='模态内损失的权重')
+    parser.add_argument('--lambda_var', type=float, default=1.0, help='方差正则化损失的权重')
     args, _ = parser.parse_known_args()
 
     setup_seed(42)
@@ -178,6 +184,7 @@ def main():
     logging.info(f"CUDA_VISIBLE_DEVICES = {os.environ.get('CUDA_VISIBLE_DEVICES')}")
 
     device = torch.device('cuda' if args.device == 'cuda' and torch.cuda.is_available() else 'cpu')
+    logging.info(f"使用设备: {device}")
 
     if device.type == 'cuda':
         logging.info(f"Actual torch.cuda.device_count() = {torch.cuda.device_count()}")
@@ -196,12 +203,14 @@ def main():
         gpu_count = torch.cuda.device_count()
         if gpu_count > 1:
             device_ids = list(range(gpu_count))
-            logging.info(f"DataParallel 使用逻辑 GPU IDs: {device_ids}")
+            # 显示物理 GPU IDs（通过 CUDA_VISIBLE_DEVICES 获取）
+            physical_gpu_ids = gpu_ids.split(',') if isinstance(gpu_ids, str) else gpu_ids
+            logging.info(f"DataParallel 使用逻辑 GPU IDs: {device_ids} (对应物理 GPU IDs: {physical_gpu_ids})")
             image_encoder = torch.nn.DataParallel(image_encoder, device_ids=device_ids)
 
     image_encoder = image_encoder.to(device)
 
-    loss_module = InstanceDualContrastiveLoss(1024, 512, 0.07, {'lambda_intra': 1.0}).to(device)
+    loss_module = InstanceDualContrastiveLoss(1024, 512, 0.07, {'lambda_intra': args.lambda_intra, 'lambda_var': args.lambda_var}).to(device)
 
     checkpoint_dir = os.path.join(args.checkpoint_dir, timestamp)
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -256,7 +265,21 @@ def main():
                 epoch_total_loss += total_loss.item()
 
                 if writer:
+                    # 记录总损失
                     writer.add_scalar('Loss/total', total_loss.item(), batch_counter)
+                    # 记录模态内损失
+                    writer.add_scalar('Loss/intra_view', loss_dict['intra_view_loss'].item(), batch_counter)
+                    # 记录生成损失
+                    writer.add_scalar('Loss/generator', loss_gen.item(), batch_counter)
+                    # 记录全局语义一致性损失（仅在 Stage 2）
+                    if stage == 2:
+                        writer.add_scalar('Loss/consistency', loss_cons.item(), batch_counter)
+                    # 记录方差正则化损失
+                    if 'var_loss' in loss_dict:
+                        writer.add_scalar('Loss/variance', loss_dict['var_loss'].item(), batch_counter)
+                    # 记录学习率
+                    for i, param_group in enumerate(optimizer.param_groups):
+                        writer.add_scalar(f'LearningRate/group_{i}', param_group['lr'], batch_counter)
                 batch_counter += 1
 
             avg_total = epoch_total_loss / len(dataloader)
