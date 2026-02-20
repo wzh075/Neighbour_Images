@@ -294,12 +294,25 @@ class MultiViewVisualEncoder(nn.Module):
                 source_feat = view_feats[b_idx, s]
                 target_real = view_feats[b_idx, t]
                 target_pose_emb = self.view_embedding(t)
-                pred_feat = self.view_generator(source_feat, target_pose_emb)
-                loss_gen = torch.mean((pred_feat - target_real) ** 2)
+                
+                # 生成特征
+                pred_feat_raw = self.view_generator(source_feat, target_pose_emb)
+                
+                # 关键步骤：对生成特征和目标真实特征进行 L2 归一化
+                pred_feat = torch.nn.functional.normalize(pred_feat_raw, p=2, dim=-1)
+                target_real_norm = torch.nn.functional.normalize(target_real, p=2, dim=-1)
+                
+                # 重构生成损失：使用余弦距离损失替代 MSE
+                loss_gen = 1.0 - torch.sum(pred_feat * target_real_norm, dim=-1).mean()
                 
                 # === 新增: 全局语义一致性约束 ===
                 # 构建混合视点集
                 mixed_view_feats = view_feats.clone()
+                
+                # 关键步骤：对混合视点集进行 L2 归一化，确保分布一致
+                mixed_view_feats = torch.nn.functional.normalize(mixed_view_feats, p=2, dim=-1)
+                
+                # 填入归一化的生成特征
                 mixed_view_feats[b_idx, t] = pred_feat
                 
                 # 聚合混合特征

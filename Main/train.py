@@ -168,8 +168,8 @@ def main():
     parser.add_argument('--log_dir', type=str, default='../Log')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints')
     parser.add_argument('--freeze_backbone', action='store_true', default=True, help='是否冻结 ResNet 骨干网络（默认冻结）')
-    parser.add_argument('--lambda_gen', type=float, default=1.0, help='生成损失的权重（降低）')
-    parser.add_argument('--lambda_cons', type=float, default=1.5, help='全局语义一致性损失的权重（提高）')
+    parser.add_argument('--lambda_gen', type=float, default=0.1, help='生成损失的权重（大幅降低，仅作为正则项）')
+    parser.add_argument('--lambda_cons', type=float, default=1.0, help='全局语义一致性损失的权重（主导损失）')
     parser.add_argument('--lambda_intra', type=float, default=1.0, help='模态内损失的权重')
     parser.add_argument('--lambda_var', type=float, default=1.0, help='方差正则化损失的权重')
     args, _ = parser.parse_known_args()
@@ -255,8 +255,21 @@ def main():
                     loss_cons = 1.0 - torch.nn.functional.cosine_similarity(global_mixed, global_real).mean()
 
                 loss_dict = loss_module(refined_view_feats, global_image_feat)
-                total_loss = loss_weights['intra'] * loss_dict['total_loss'] + \
-                             loss_weights['gen'] * (loss_gen + args.lambda_cons * loss_cons)
+                
+                # 根据训练阶段使用不同的损失计算逻辑
+                if stage == 2:
+                    # Stage 2: 仅训练生成器，但以全局一致性为主导
+                    # 确保两个 loss 都是标量
+                    if loss_gen.dim() > 0: loss_gen = loss_gen.mean()
+                    if loss_cons.dim() > 0: loss_cons = loss_cons.mean()
+                    
+                    # 解耦计算，通过降低 lambda_gen 实现"放宽约束"
+                    # 策略：Strong Global Consistency, Weak Feature Reconstruction
+                    total_loss = (args.lambda_gen * loss_gen) + (args.lambda_cons * loss_cons)
+                else:
+                    # Stage 1: 保持原有逻辑 (Intra + Gen)
+                    total_loss = loss_weights['intra'] * loss_dict['total_loss'] + \
+                                 loss_weights['gen'] * loss_gen
 
                 optimizer.zero_grad()
                 total_loss.backward()
