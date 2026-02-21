@@ -1,0 +1,8 @@
+2026-02-20 23:12:31,938 - INFO - CUDA_VISIBLE_DEVICES = 0,1,2,3
+2026-02-20 23:12:31,948 - INFO - 使用设备: cuda
+2026-02-20 23:12:31,978 - INFO - Actual torch.cuda.device_count() = 4
+2026-02-20 23:12:31,981 - INFO - 逻辑 cuda:0 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-20 23:12:31,981 - INFO - 逻辑 cuda:1 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-20 23:12:31,981 - INFO - 逻辑 cuda:2 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-20 23:12:31,981 - INFO - 逻辑 cuda:3 -> NVIDIA GeForce RTX 3090 | Memory: 23.69 GB
+2026-02-20 23:12:35,483 - INFO - DataParallel 使用逻辑 GPU IDs: [0, 1, 2, 3] (对应物理 GPU IDs: ['0', '1', '2', '3'])

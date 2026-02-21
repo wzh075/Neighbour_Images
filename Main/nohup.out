@@ -1,61 +1,0 @@
-nohup: ignoring input
-2026-01-21 19:07:58,726 - INFO - 开始特征提取流程
-2026-01-21 19:07:58,728 - INFO - 配置文件加载完成: ../DataLoader/config.yaml
-2026-01-21 19:07:58,777 - INFO - 使用设备: cpu
-2026-01-21 19:07:58,777 - INFO - 初始化模型...
-/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
-  warnings.warn(
-/home/hdu/.conda/envs/Viewclouds/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
-  warnings.warn(msg)
-2026-01-21 19:07:59,585 - INFO - Found latest checkpoint: ../Checkpoints/2026-01-19_14-48-26/best_model.pth
-2026-01-21 19:07:59,931 - INFO - 模型加载完成
-All parameters (including ResNet Backbone) will be trained.
-Loading dataset:   0%|          | 0/12311 [00:00<?, ?it/s]Loading dataset:   5%|▍         | 578/12311 [00:00<00:02, 5770.27it/s]Loading dataset:   9%|▉         | 1166/12311 [00:00<00:01, 5832.79it/s]Loading dataset:  15%|█▍        | 1834/12311 [00:00<00:01, 6216.17it/s]Loading dataset:  20%|██        | 2490/12311 [00:00<00:01, 6351.76it/s]Loading dataset:  26%|██▌       | 3160/12311 [00:00<00:01, 6474.93it/s]Loading dataset:  31%|███       | 3808/12311 [00:00<00:01, 6262.34it/s]Loading dataset:  36%|███▌      | 4436/12311 [00:00<00:01, 6110.23it/s]Loading dataset:  41%|████      | 5049/12311 [00:00<00:01, 6024.27it/s]Loading dataset:  46%|████▌     | 5653/12311 [00:00<00:01, 5935.05it/s]Loading dataset:  51%|█████     | 6248/12311 [00:01<00:01, 5860.22it/s]Loading dataset:  56%|█████▌    | 6835/12311 [00:01<00:00, 5854.52it/s]Loading dataset:  61%|██████    | 7482/12311 [00:01<00:00, 6035.17it/s]Loading dataset:  66%|██████▌   | 8087/12311 [00:01<00:00, 5992.73it/s]Loading dataset:  71%|███████   | 8687/12311 [00:01<00:00, 4943.48it/s]Loading dataset:  75%|███████▌  | 9258/12311 [00:01<00:00, 5140.88it/s]Loading dataset:  80%|████████  | 9895/12311 [00:01<00:00, 5470.96it/s]Loading dataset:  86%|████████▌ | 10567/12311 [00:01<00:00, 5817.61it/s]Loading dataset:  91%|█████████ | 11192/12311 [00:01<00:00, 5940.33it/s]Loading dataset:  96%|█████████▌| 11799/12311 [00:02<00:00, 5801.85it/s]Loading dataset: 100%|██████████| 12311/12311 [00:02<00:00, 5842.14it/s]
-2026-01-21 19:08:04,511 - INFO - 数据加载器创建完成，总样本数: 12311
-2026-01-21 19:08:04,511 - INFO - 开始提取特征...
-
-Category Sample Counts:
-------------------------------
-airplane: 726 samples
-bathtub: 156 samples
-bed: 615 samples
-bench: 193 samples
-bookshelf: 672 samples
-bottle: 435 samples
-bowl: 84 samples
-car: 297 samples
-chair: 989 samples
-cone: 187 samples
-cup: 99 samples
-curtain: 158 samples
-desk: 286 samples
-door: 129 samples
-dresser: 286 samples
-flower_pot: 169 samples
-glass_box: 271 samples
-guitar: 255 samples
-keyboard: 165 samples
-lamp: 144 samples
-laptop: 169 samples
-mantel: 384 samples
-monitor: 565 samples
-night_stand: 286 samples
-person: 108 samples
-piano: 331 samples
-plant: 340 samples
-radio: 124 samples
-range_hood: 215 samples
-sink: 148 samples
-sofa: 780 samples
-stairs: 144 samples
-stool: 110 samples
-table: 492 samples
-tent: 183 samples
-toilet: 444 samples
-tv_stand: 367 samples
-vase: 575 samples
-wardrobe: 107 samples
-xbox: 123 samples
-------------------------------
-Total samples: 12311
-提取特征:   0%|          | 0/385 [00:00<?, ?it/s]

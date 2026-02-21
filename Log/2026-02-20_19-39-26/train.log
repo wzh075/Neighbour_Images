@@ -1,0 +1,58 @@
+2026-02-20 19:39:26,798 - INFO - CUDA_VISIBLE_DEVICES = 0,1,2,3
+2026-02-20 19:39:30,004 - INFO - 使用设备: cuda
+2026-02-20 19:39:30,059 - INFO - Actual torch.cuda.device_count() = 4
+2026-02-20 19:39:30,064 - INFO - 逻辑 cuda:0 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-20 19:39:30,064 - INFO - 逻辑 cuda:1 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-20 19:39:30,065 - INFO - 逻辑 cuda:2 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-20 19:39:30,065 - INFO - 逻辑 cuda:3 -> NVIDIA GeForce RTX 3090 | Memory: 23.69 GB
+2026-02-20 19:39:32,560 - INFO - DataParallel 使用逻辑 GPU IDs: [0, 1, 2, 3] (对应物理 GPU IDs: ['0', '1', '2', '3'])
+2026-02-20 19:42:32,211 - INFO - Epoch 1: Total Loss=5.8202, Contrastive Loss=4.8333, Var Loss=0.9869
+2026-02-20 19:45:31,761 - INFO - Epoch 2: Total Loss=5.8363, Contrastive Loss=4.8492, Var Loss=0.9871
+2026-02-20 19:48:29,130 - INFO - Epoch 3: Total Loss=5.8427, Contrastive Loss=4.8557, Var Loss=0.9870
+2026-02-20 19:51:27,183 - INFO - Epoch 4: Total Loss=5.8402, Contrastive Loss=4.8530, Var Loss=0.9872
+2026-02-20 19:54:26,472 - INFO - Epoch 5: Total Loss=5.8408, Contrastive Loss=4.8536, Var Loss=0.9872
+2026-02-20 19:57:24,628 - INFO - Epoch 6: Total Loss=5.8424, Contrastive Loss=4.8550, Var Loss=0.9874
+2026-02-20 20:00:23,651 - INFO - Epoch 7: Total Loss=5.8408, Contrastive Loss=4.8534, Var Loss=0.9874
+2026-02-20 20:03:23,027 - INFO - Epoch 8: Total Loss=5.8414, Contrastive Loss=4.8540, Var Loss=0.9874
+2026-02-20 20:06:20,137 - INFO - Epoch 9: Total Loss=5.8424, Contrastive Loss=4.8549, Var Loss=0.9876
+2026-02-20 20:09:19,050 - INFO - Epoch 10: Total Loss=5.8407, Contrastive Loss=4.8530, Var Loss=0.9876
+2026-02-20 20:12:17,416 - INFO - Epoch 11: Total Loss=5.8402, Contrastive Loss=4.8527, Var Loss=0.9876
+2026-02-20 20:15:10,725 - INFO - Epoch 12: Total Loss=5.8404, Contrastive Loss=4.8529, Var Loss=0.9875
+2026-02-20 20:18:08,388 - INFO - Epoch 13: Total Loss=5.8408, Contrastive Loss=4.8534, Var Loss=0.9875
+2026-02-20 20:21:07,054 - INFO - Epoch 14: Total Loss=5.8407, Contrastive Loss=4.8532, Var Loss=0.9875
+2026-02-20 20:24:05,952 - INFO - Epoch 15: Total Loss=5.8398, Contrastive Loss=4.8524, Var Loss=0.9875
+2026-02-20 20:27:04,781 - INFO - Epoch 16: Total Loss=5.8393, Contrastive Loss=4.8519, Var Loss=0.9874
+2026-02-20 20:30:02,682 - INFO - Epoch 17: Total Loss=5.8415, Contrastive Loss=4.8541, Var Loss=0.9874
+2026-02-20 20:32:59,425 - INFO - Epoch 18: Total Loss=5.8407, Contrastive Loss=4.8533, Var Loss=0.9874
+2026-02-20 20:35:57,114 - INFO - Epoch 19: Total Loss=5.8403, Contrastive Loss=4.8529, Var Loss=0.9874
+2026-02-20 20:38:55,417 - INFO - Epoch 20: Total Loss=5.8411, Contrastive Loss=4.8537, Var Loss=0.9874
+2026-02-20 20:41:54,889 - INFO - Epoch 21: Total Loss=5.8407, Contrastive Loss=4.8532, Var Loss=0.9874
+2026-02-20 20:44:54,450 - INFO - Epoch 22: Total Loss=5.8416, Contrastive Loss=4.8542, Var Loss=0.9874
+2026-02-20 20:47:52,662 - INFO - Epoch 23: Total Loss=5.8407, Contrastive Loss=4.8532, Var Loss=0.9874
+2026-02-20 20:50:51,694 - INFO - Epoch 24: Total Loss=5.8411, Contrastive Loss=4.8536, Var Loss=0.9874
+2026-02-20 20:53:51,510 - INFO - Epoch 25: Total Loss=5.8408, Contrastive Loss=4.8534, Var Loss=0.9875
+2026-02-20 20:56:49,795 - INFO - Epoch 26: Total Loss=5.8404, Contrastive Loss=4.8529, Var Loss=0.9875
+2026-02-20 20:59:49,267 - INFO - Epoch 27: Total Loss=5.8413, Contrastive Loss=4.8538, Var Loss=0.9875
+2026-02-20 21:02:48,175 - INFO - Epoch 28: Total Loss=5.8420, Contrastive Loss=4.8545, Var Loss=0.9875
+2026-02-20 21:05:46,947 - INFO - Epoch 29: Total Loss=5.8426, Contrastive Loss=4.8551, Var Loss=0.9875
+2026-02-20 21:08:45,532 - INFO - Epoch 30: Total Loss=5.8404, Contrastive Loss=4.8529, Var Loss=0.9875
+2026-02-20 21:11:43,827 - INFO - Epoch 31: Total Loss=5.8412, Contrastive Loss=4.8537, Var Loss=0.9875
+2026-02-20 21:14:42,846 - INFO - Epoch 32: Total Loss=5.8418, Contrastive Loss=4.8542, Var Loss=0.9875
+2026-02-20 21:17:41,168 - INFO - Epoch 33: Total Loss=5.8412, Contrastive Loss=4.8536, Var Loss=0.9875
+2026-02-20 21:20:39,834 - INFO - Epoch 34: Total Loss=5.8408, Contrastive Loss=4.8533, Var Loss=0.9875
+2026-02-20 21:23:38,511 - INFO - Epoch 35: Total Loss=5.8417, Contrastive Loss=4.8542, Var Loss=0.9875
+2026-02-20 21:26:37,096 - INFO - Epoch 36: Total Loss=5.8413, Contrastive Loss=4.8537, Var Loss=0.9875
+2026-02-20 21:29:34,828 - INFO - Epoch 37: Total Loss=5.8408, Contrastive Loss=4.8532, Var Loss=0.9875
+2026-02-20 21:32:33,559 - INFO - Epoch 38: Total Loss=5.8408, Contrastive Loss=4.8532, Var Loss=0.9875
+2026-02-20 21:35:31,172 - INFO - Epoch 39: Total Loss=5.8413, Contrastive Loss=4.8537, Var Loss=0.9875
+2026-02-20 21:38:29,977 - INFO - Epoch 40: Total Loss=5.8407, Contrastive Loss=4.8531, Var Loss=0.9875
+2026-02-20 21:41:28,252 - INFO - Epoch 41: Total Loss=5.8402, Contrastive Loss=4.8527, Var Loss=0.9876
+2026-02-20 21:44:25,585 - INFO - Epoch 42: Total Loss=5.8397, Contrastive Loss=4.8522, Var Loss=0.9875
+2026-02-20 21:47:23,590 - INFO - Epoch 43: Total Loss=5.8406, Contrastive Loss=4.8531, Var Loss=0.9875
+2026-02-20 21:50:22,154 - INFO - Epoch 44: Total Loss=5.8405, Contrastive Loss=4.8530, Var Loss=0.9876
+2026-02-20 21:53:21,110 - INFO - Epoch 45: Total Loss=5.8415, Contrastive Loss=4.8540, Var Loss=0.9875
+2026-02-20 21:56:19,287 - INFO - Epoch 46: Total Loss=5.8396, Contrastive Loss=4.8521, Var Loss=0.9876
+2026-02-20 21:59:17,602 - INFO - Epoch 47: Total Loss=5.8402, Contrastive Loss=4.8527, Var Loss=0.9876
+2026-02-20 22:02:16,370 - INFO - Epoch 48: Total Loss=5.8407, Contrastive Loss=4.8531, Var Loss=0.9875
+2026-02-20 22:05:15,518 - INFO - Epoch 49: Total Loss=5.8414, Contrastive Loss=4.8538, Var Loss=0.9875
+2026-02-20 22:08:14,490 - INFO - Epoch 50: Total Loss=5.8414, Contrastive Loss=4.8539, Var Loss=0.9876

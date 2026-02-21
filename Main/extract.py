@@ -125,7 +125,9 @@ def extract_features(args):
         else:
             model.load_state_dict(state_dict)
     
-    if 'image_encoder_state_dict' in checkpoint:
+    if 'student_model_state_dict' in checkpoint:
+        state_dict = checkpoint['student_model_state_dict']
+    elif 'image_encoder_state_dict' in checkpoint:
         state_dict = checkpoint['image_encoder_state_dict']
     else:
         state_dict = checkpoint
@@ -142,7 +144,6 @@ def extract_features(args):
     logging.info(f"数据加载器创建完成，总样本数: {len(dataloader.dataset)}")
     
     # 准备特征存储
-    all_refined_view_feats = []
     all_global_image_feats = []
     all_object_ids = []
     all_categories = []
@@ -155,11 +156,10 @@ def extract_features(args):
             for view_name in batch['views']:
                 batch['views'][view_name] = batch['views'][view_name].to(device)
             
-            # 提取特征
-            refined_view_feats, global_image_feat = image_encoder(batch)
+            # 提取特征 (Teacher 模式)
+            global_image_feat = image_encoder(batch, return_predictor=False)
             
             # 保存特征（移回CPU并转为numpy数组）
-            all_refined_view_feats.append(refined_view_feats.cpu().numpy())
             all_global_image_feats.append(global_image_feat.cpu().numpy())
             
             # 保存元数据
@@ -168,11 +168,9 @@ def extract_features(args):
     
     # 合并所有特征
     logging.info("合并特征数组...")
-    refined_view_feats = np.concatenate(all_refined_view_feats, axis=0)
     global_image_feats = np.concatenate(all_global_image_feats, axis=0)
     
     logging.info(f"特征提取完成：")
-    logging.info(f"  - Refined view features shape: {refined_view_feats.shape}")
     logging.info(f"  - Global image features shape: {global_image_feats.shape}")
     logging.info(f"  - Total valid samples: {len(all_object_ids)}")
     
@@ -185,7 +183,6 @@ def extract_features(args):
     logging.info(f"保存特征到：{feature_file}")
     
     with h5py.File(feature_file, 'w') as f:
-        f.create_dataset('refined_view_feats', data=refined_view_feats, dtype='float32')
         f.create_dataset('global_image_feats', data=global_image_feats, dtype='float32')
         
         # 保存字符串数据

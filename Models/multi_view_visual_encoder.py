@@ -131,7 +131,7 @@ class MultiViewVisualEncoder(nn.Module):
          这一步不是为了数据增强，而是为了利用邻域的互补信息，形成一个抗遮挡、信息更丰富的“全局视点表示”。
        - Stage 3 (Inter-View Aggregation): 使用 Set Transformer 融合 N 个增强后的视点特征，生成 3D 对象的全局描述。
     """
-    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1, freeze_backbone=False, num_views=12, view_embedding_dim=512):
+    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1, freeze_backbone=False):
         super(MultiViewVisualEncoder, self).__init__()
         
         # Step 1: Initialize backbone
@@ -150,66 +150,27 @@ class MultiViewVisualEncoder(nn.Module):
         
         # Step 3: Set Transformer for aggregation
         self.set_transformer = SetTransformerAggregation(feature_dim, nhead, dim_feedforward, dropout)
-        self.view_embedding = nn.Embedding(num_views, view_embedding_dim)
         
-        # 残差门控自适应生成器 (Residual Gated Adaptive Generator)
-        class AdaptiveViewGenerator(nn.Module):
-            def __init__(self, feature_dim, pose_dim):
-                super(AdaptiveViewGenerator, self).__init__()
-                # 特征变换支路
-                self.feat_transform = nn.Sequential(
-                    nn.Linear(feature_dim, feature_dim),
-                    nn.LayerNorm(feature_dim),
-                    nn.ReLU()
-                )
-                
-                # 位姿门控支路
-                self.pose_gate = nn.Sequential(
-                    nn.Linear(pose_dim, feature_dim),
-                    nn.ReLU(),
-                    nn.Linear(feature_dim, feature_dim),
-                    nn.Sigmoid()  # 生成0~1的门控向量
-                )
-                
-                # 残差生成支路
-                self.delta_net = nn.Sequential(
-                    nn.Linear(feature_dim, feature_dim),
-                    nn.LayerNorm(feature_dim),
-                    nn.ReLU(),
-                    nn.Linear(feature_dim, feature_dim)
-                )
-            
-            def forward(self, source_feat, target_pose_emb):
-                # 1. 特征变换
-                f_transformed = self.feat_transform(source_feat)
-                
-                # 2. 生成位姿门控
-                gate = self.pose_gate(target_pose_emb)
-                
-                # 3. 门控融合
-                f_fused = f_transformed * gate
-                
-                # 4. 计算残差
-                delta = self.delta_net(f_fused)
-                
-                # 5. 残差连接
-                output = source_feat + delta
-                
-                return output
+        # Step 4: Predictor for Student network
+        # Predictor: 1024 -> 512 -> 1024
+        self.predictor = nn.Sequential(
+            nn.Linear(feature_dim, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(inplace=True),
+            nn.Linear(512, feature_dim)
+        )
         
-        self.view_generator = AdaptiveViewGenerator(feature_dim, view_embedding_dim)
-        
-        # Step 4: Freeze backbone parameters if specified
+        # Step 5: Freeze backbone parameters if specified
         if freeze_backbone:
             for param in self.backbone.parameters():
                 param.requires_grad = False
-            print(f"ResNet Backbone parameters have been frozen. Only projection layers and set transformer will be trained.")
+            print(f"ResNet Backbone parameters have been frozen. Only projection layers, set transformer and predictor will be trained.")
         else:
             for param in self.backbone.parameters():
                 param.requires_grad = True
             print(f"All parameters (including ResNet Backbone) will be trained.")
 
-    def forward(self, batch, mode='default', compute_gen_loss=True):
+    def forward(self, batch, return_predictor=False):
         # Input: batch containing 'views' dictionary
         views_dict = batch['views']
         
@@ -275,62 +236,20 @@ class MultiViewVisualEncoder(nn.Module):
         
         # Step 3.1: Squeeze aggregated feature
         # Shape: (B, D)
-        global_image_feat = aggregated_feat.squeeze(1)
-        if mode == 'train_with_gen':
-            B, N, D = view_feats.size()
-            device = view_feats.device
-            
-            if not compute_gen_loss:
-                # 跳过生成器计算，直接返回0.0
-                loss_gen = torch.tensor(0.0, device=device)
-            elif N < 2:
-                loss_gen = torch.tensor(0.0, device=device)
-                global_mixed = None
-            else:
-                s = torch.randint(0, N, (B,), device=device)
-                t = torch.randint(0, N, (B,), device=device)
-                t = torch.where(t == s, (t + 1) % N, t)
-                b_idx = torch.arange(B, device=device)
-                source_feat = view_feats[b_idx, s]
-                target_real = view_feats[b_idx, t]
-                target_pose_emb = self.view_embedding(t)
-                
-                # 生成特征
-                pred_feat_raw = self.view_generator(source_feat, target_pose_emb)
-                
-                # 关键步骤：对生成特征和目标真实特征进行 L2 归一化
-                pred_feat = torch.nn.functional.normalize(pred_feat_raw, p=2, dim=-1)
-                target_real_norm = torch.nn.functional.normalize(target_real, p=2, dim=-1)
-                
-                # 重构生成损失：使用余弦距离损失替代 MSE
-                loss_gen = 1.0 - torch.sum(pred_feat * target_real_norm, dim=-1).mean()
-                
-                # === 新增: 全局语义一致性约束 ===
-                # 构建混合视点集
-                mixed_view_feats = view_feats.clone()
-                
-                # 关键步骤：对混合视点集进行 L2 归一化，确保分布一致
-                mixed_view_feats = torch.nn.functional.normalize(mixed_view_feats, p=2, dim=-1)
-                
-                # 填入归一化的生成特征
-                mixed_view_feats[b_idx, t] = pred_feat
-                
-                # 聚合混合特征
-                _, global_mixed = self.set_transformer(mixed_view_feats)
-                global_mixed = global_mixed.squeeze(1)  # (B, D)
-            
-            # Ensure loss_gen is a 1-dim tensor for DataParallel gathering
-            if loss_gen.dim() == 0:
-                loss_gen = loss_gen.unsqueeze(0)
-                
-            # 更新返回值，加入 global_mixed
-            return refined_view_feats, global_image_feat, loss_gen, global_image_feat, global_mixed
-        return refined_view_feats, global_image_feat
+        global_feat = aggregated_feat.squeeze(1)
+        
+        # Step 3.2: Apply predictor if needed (Student mode)
+        if return_predictor:
+            pred_feat = self.predictor(global_feat)
+            return global_feat, pred_feat
+        else:
+            # Teacher mode or test mode
+            return global_feat
 
 
 if __name__ == "__main__":
     # Test the MultiViewVisualEncoder
-    encoder = MultiViewVisualEncoder(backbone_type='resnet50', feature_dim=2048)
+    encoder = MultiViewVisualEncoder(backbone_type='resnet50', feature_dim=1024)
     
     # Create dummy batch data
     B = 2  # Batch size
@@ -347,15 +266,21 @@ if __name__ == "__main__":
     
     dummy_batch = {'views': dummy_views}
     
-    # Forward pass
-    refined_view_feats, global_image_feat = encoder(dummy_batch)
+    # Test Teacher mode (return_predictor=False)
+    print("=== Testing Teacher mode ===")
+    global_feat = encoder(dummy_batch, return_predictor=False)
+    print(f"Global feature shape: {global_feat.shape}")
+    print(f"Expected shape: (B, D) = ({B}, 1024)")
+    assert global_feat.shape == (B, 1024), "Global feature shape mismatch"
+    print("Teacher mode test passed!")
     
-    print("=== MultiViewVisualEncoder Test Results ===")
-    print(f"Refined view features shape: {refined_view_feats.shape}")
-    print(f"Global image feature shape: {global_image_feat.shape}")
-    print(f"Expected shapes: (B, N, D) = ({B}, {N}, 1024) and (B, D) = ({B}, 1024)")
-    
-    # Check if shapes match expectations
-    assert refined_view_feats.shape == (B, N, 1024), "Refined view features shape mismatch"
-    assert global_image_feat.shape == (B, 1024), "Global image feature shape mismatch"
-    print("All shape checks passed!")
+    # Test Student mode (return_predictor=True)
+    print("\n=== Testing Student mode ===")
+    global_feat, pred_feat = encoder(dummy_batch, return_predictor=True)
+    print(f"Global feature shape: {global_feat.shape}")
+    print(f"Predicted feature shape: {pred_feat.shape}")
+    print(f"Expected shapes: (B, D) = ({B}, 1024), (B, D) = ({B}, 1024)")
+    assert global_feat.shape == (B, 1024), "Global feature shape mismatch"
+    assert pred_feat.shape == (B, 1024), "Predicted feature shape mismatch"
+    print("Student mode test passed!")
+    print("\nAll tests passed!")

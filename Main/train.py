@@ -50,7 +50,21 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DataLoader.data_loader import ModelNet40NeighbourDataset, load_config
 from Models.multi_view_visual_encoder import MultiViewVisualEncoder
-from Loss_Function.instance_contrastive_loss import InstanceDualContrastiveLoss
+from Loss_Function.instance_contrastive_loss import ViewDropoutContrastiveLoss
+
+
+@torch.no_grad()
+def update_ema_variables(student_model, teacher_model, momentum=0.996):
+    """
+    Update teacher model parameters using EMA from student model
+    
+    Args:
+        student_model: Student model with learnable parameters
+        teacher_model: Teacher model with EMA parameters
+        momentum: EMA momentum factor
+    """
+    for student_param, teacher_param in zip(student_model.parameters(), teacher_model.parameters()):
+        teacher_param.data.mul_(momentum).add_(student_param.data, alpha=1 - momentum)
 
 
 def setup_seed(seed):
@@ -107,71 +121,22 @@ def create_dataloader(config, batch_size, num_workers):
                       num_workers=num_workers, drop_last=True)
 
 
-def set_training_stage(model, stage, args):
-    raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
 
-    for p in raw_model.parameters():
-        p.requires_grad = False
-
-    logging.info(f"=== 切换到训练阶段 {stage} ===")
-
-    if stage == 1:
-        # 第一阶段：不冻结参数
-        if not args.freeze_backbone:
-            for p in raw_model.backbone.parameters(): p.requires_grad = True
-        for p in raw_model.projection.parameters(): p.requires_grad = True
-        for p in raw_model.set_transformer.parameters(): p.requires_grad = True
-
-        params = [p for p in raw_model.parameters() if p.requires_grad]
-        optimizer = optim.Adam(params, lr=args.lr)
-        loss_weights = {'intra': args.lambda_intra, 'gen': 0.0}
-
-    elif stage == 2:
-        # 第二阶段：冻结 ResNet 和 Set Transformer，仅训练生成器
-        # 冻结 ResNet 骨干网络
-        for p in raw_model.backbone.parameters(): p.requires_grad = False
-        # 冻结 Set Transformer 聚合网络
-        for p in raw_model.set_transformer.parameters(): p.requires_grad = False
-        # 仅开放生成器相关参数
-        for p in raw_model.view_generator.parameters(): p.requires_grad = True
-        for p in raw_model.view_embedding.parameters(): p.requires_grad = True
-
-        params = [p for p in raw_model.parameters() if p.requires_grad]
-        optimizer = optim.Adam(params, lr=args.lr)
-        loss_weights = {'intra': 0.0, 'gen': args.lambda_gen}
-
-    else:
-        # 第三阶段：不冻结 Set Transformer 部分的参数，冻结 ResNet 部分的参数
-        # 冻结 ResNet
-        for p in raw_model.backbone.parameters(): p.requires_grad = False
-        # 不冻结其他部分
-        for p in raw_model.projection.parameters(): p.requires_grad = True
-        for p in raw_model.set_transformer.parameters(): p.requires_grad = True
-        for p in raw_model.view_generator.parameters(): p.requires_grad = True
-        for p in raw_model.view_embedding.parameters(): p.requires_grad = True
-
-        params = [p for p in raw_model.parameters() if p.requires_grad]
-        optimizer = optim.Adam(params, lr=args.lr * 0.1)
-        loss_weights = {'intra': 1.0, 'gen': args.lambda_gen}
-
-    return optimizer, loss_weights
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--batch_size', type=int, default=128, help='批次大小（减小以避免显存不足）')
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=16, help='批次大小（减小以避免显存不足）')
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--log_dir', type=str, default='../Log')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints')
     parser.add_argument('--freeze_backbone', action='store_true', default=True, help='是否冻结 ResNet 骨干网络（默认冻结）')
-    parser.add_argument('--lambda_gen', type=float, default=0.1, help='生成损失的权重（大幅降低，仅作为正则项）')
-    parser.add_argument('--lambda_cons', type=float, default=1.0, help='全局语义一致性损失的权重（主导损失）')
-    parser.add_argument('--lambda_intra', type=float, default=1.0, help='模态内损失的权重')
-    parser.add_argument('--lambda_var', type=float, default=1.0, help='方差正则化损失的权重')
+    parser.add_argument('--ema_momentum', type=float, default=0.996, help='EMA momentum factor for teacher model')
+    parser.add_argument('--lambda_distill', type=float, default=1.0, help='蒸馏损失的权重')
     args, _ = parser.parse_known_args()
 
     setup_seed(42)
@@ -197,7 +162,16 @@ def main():
 
     dataloader = create_dataloader(config, args.batch_size, args.num_workers)
 
-    image_encoder = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
+    # Create Student model
+    student_model = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
+
+    # Create Teacher model
+    teacher_model = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
+    
+    # Initialize Teacher model with Student model's parameters
+    for student_param, teacher_param in zip(student_model.parameters(), teacher_model.parameters()):
+        teacher_param.data.copy_(student_param.data)
+        teacher_param.requires_grad = False  # Freeze Teacher model
 
     if device.type == 'cuda':
         gpu_count = torch.cuda.device_count()
@@ -206,113 +180,132 @@ def main():
             # 显示物理 GPU IDs（通过 CUDA_VISIBLE_DEVICES 获取）
             physical_gpu_ids = gpu_ids.split(',') if isinstance(gpu_ids, str) else gpu_ids
             logging.info(f"DataParallel 使用逻辑 GPU IDs: {device_ids} (对应物理 GPU IDs: {physical_gpu_ids})")
-            image_encoder = torch.nn.DataParallel(image_encoder, device_ids=device_ids)
+            student_model = torch.nn.DataParallel(student_model, device_ids=device_ids)
+            teacher_model = torch.nn.DataParallel(teacher_model, device_ids=device_ids)
 
-    image_encoder = image_encoder.to(device)
+    student_model = student_model.to(device)
+    teacher_model = teacher_model.to(device)
 
-    loss_module = InstanceDualContrastiveLoss(1024, 512, 0.07, {'lambda_intra': args.lambda_intra, 'lambda_var': args.lambda_var}).to(device)
+    # Use MSE loss for distillation
+    loss_module = nn.MSELoss().to(device)
 
     checkpoint_dir = os.path.join(args.checkpoint_dir, timestamp)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    stage_epochs = {1: int(args.epochs * 0.6), 2: int(args.epochs * 0.4)}
+    # 初始化优化器，只更新 Student 模型的参数
+    raw_student = student_model.module if isinstance(student_model, torch.nn.DataParallel) else student_model
+    
+    # 设置参数梯度
+    if args.freeze_backbone:
+        for p in raw_student.backbone.parameters(): p.requires_grad = False
+    for p in raw_student.projection.parameters(): p.requires_grad = True
+    for p in raw_student.set_transformer.parameters(): p.requires_grad = True
+    for p in raw_student.predictor.parameters(): p.requires_grad = True
+    
+    params = [p for p in raw_student.parameters() if p.requires_grad]
+    optimizer = optim.Adam(params, lr=args.lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
     global_epoch = 0
     best_total_loss = float('inf')
     batch_counter = 0
 
-    for stage in [1, 2]:
-        optimizer, loss_weights = set_training_stage(image_encoder, stage, args)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
+    for epoch in range(args.epochs):
+        global_epoch += 1
+        epoch_total_loss = 0.0
 
-        for _ in range(stage_epochs[stage]):
-            global_epoch += 1
-            epoch_total_loss = 0.0
+        for batch in tqdm(dataloader, desc=f"Epoch {global_epoch}"):
+            # 处理批次数据
+            for v in batch['views']:
+                batch['views'][v] = batch['views'][v].to(device)
 
-            for batch in tqdm(dataloader, desc=f"Stage {stage} Epoch"):
-                for v in batch['views']:
-                    batch['views'][v] = batch['views'][v].to(device)
+            # ----------------------
+            # 1. 准备 Teacher 输入（完整视点）
+            # ----------------------
+            teacher_batch = batch
 
-                outputs = image_encoder(batch, mode='train_with_gen')
-                
-                # 处理不同模式的返回值
-                if len(outputs) == 3:
-                    # 普通模式或 Stage 1
-                    refined_view_feats, global_image_feat, loss_gen = outputs
-                    global_real = None
-                    global_mixed = None
-                elif len(outputs) == 5:
-                    # Stage 2: 带有全局语义一致性约束
-                    refined_view_feats, global_image_feat, loss_gen, global_real, global_mixed = outputs
+            # ----------------------
+            # 2. 准备 Student 输入（随机子集视点）
+            # ----------------------
+            # 获取视点总数
+            num_views = len(batch['views'])
+            if num_views > 1:
+                # 随机选择 1 到 num_views-1 个视点
+                K = torch.randint(1, num_views, (1,)).item()
+                # 随机选择 K 个视点索引
+                view_keys = list(batch['views'].keys())
+                selected_keys = random.sample(view_keys, K)
+                # 创建子集视点批次
+                student_batch = {'views': {k: batch['views'][k] for k in selected_keys}}
+            else:
+                # 如果只有一个视点，使用完整视点
+                student_batch = batch
 
-                if isinstance(loss_gen, torch.Tensor) and loss_gen.dim() > 0:
-                    loss_gen = loss_gen.mean()
+            # ----------------------
+            # 3. 前向传播
+            # ----------------------
+            # Teacher 模型（完整视点，不使用预测器）
+            with torch.no_grad():
+                teacher_feat = teacher_model(teacher_batch, return_predictor=False)
 
-                # 计算全局语义一致性损失
-                loss_cons = torch.tensor(0.0, device=device)
-                if stage == 2 and global_mixed is not None and global_real is not None:
-                    # 使用余弦相似度损失
-                    loss_cons = 1.0 - torch.nn.functional.cosine_similarity(global_mixed, global_real).mean()
+            # Student 模型（子集视点，使用预测器）
+            student_feat, student_pred = student_model(student_batch, return_predictor=True)
 
-                loss_dict = loss_module(refined_view_feats, global_image_feat)
-                
-                # 根据训练阶段使用不同的损失计算逻辑
-                if stage == 2:
-                    # Stage 2: 仅训练生成器，但以全局一致性为主导
-                    # 确保两个 loss 都是标量
-                    if loss_gen.dim() > 0: loss_gen = loss_gen.mean()
-                    if loss_cons.dim() > 0: loss_cons = loss_cons.mean()
-                    
-                    # 解耦计算，通过降低 lambda_gen 实现"放宽约束"
-                    # 策略：Strong Global Consistency, Weak Feature Reconstruction
-                    total_loss = (args.lambda_gen * loss_gen) + (args.lambda_cons * loss_cons)
-                else:
-                    # Stage 1: 保持原有逻辑 (Intra + Gen)
-                    total_loss = loss_weights['intra'] * loss_dict['total_loss'] + \
-                                 loss_weights['gen'] * loss_gen
+            # ----------------------
+            # 4. 计算蒸馏损失
+            # ----------------------
+            distill_loss = loss_module(student_pred, teacher_feat.detach())
+            total_loss = args.lambda_distill * distill_loss
 
-                optimizer.zero_grad()
-                total_loss.backward()
-                optimizer.step()
+            # ----------------------
+            # 5. 反向传播
+            # ----------------------
+            optimizer.zero_grad()
+            total_loss.backward()
+            optimizer.step()
 
-                epoch_total_loss += total_loss.item()
+            # ----------------------
+            # 6. EMA 更新 Teacher 模型
+            # ----------------------
+            update_ema_variables(student_model, teacher_model, momentum=args.ema_momentum)
 
-                if writer:
-                    # 记录总损失
-                    writer.add_scalar('Loss/total', total_loss.item(), batch_counter)
-                    # 记录模态内损失
-                    writer.add_scalar('Loss/intra_view', loss_dict['intra_view_loss'].item(), batch_counter)
-                    # 记录生成损失
-                    writer.add_scalar('Loss/generator', loss_gen.item(), batch_counter)
-                    # 记录全局语义一致性损失（仅在 Stage 2）
-                    if stage == 2:
-                        writer.add_scalar('Loss/consistency', loss_cons.item(), batch_counter)
-                    # 记录方差正则化损失
-                    if 'var_loss' in loss_dict:
-                        writer.add_scalar('Loss/variance', loss_dict['var_loss'].item(), batch_counter)
-                    # 记录学习率
-                    for i, param_group in enumerate(optimizer.param_groups):
-                        writer.add_scalar(f'LearningRate/group_{i}', param_group['lr'], batch_counter)
-                batch_counter += 1
+            # 累加损失
+            epoch_total_loss += total_loss.item()
 
-            avg_total = epoch_total_loss / len(dataloader)
-            scheduler.step(avg_total)
+            if writer:
+                # 记录总损失
+                writer.add_scalar('Loss/total', total_loss.item(), batch_counter)
+                # 记录蒸馏损失
+                writer.add_scalar('Loss/distill', distill_loss.item(), batch_counter)
+                # 记录学习率
+                for i, param_group in enumerate(optimizer.param_groups):
+                    writer.add_scalar(f'LearningRate/group_{i}', param_group['lr'], batch_counter)
+            batch_counter += 1
 
-            def get_state_dict(m):
-                return m.module.state_dict() if isinstance(m, torch.nn.DataParallel) else m.state_dict()
+        # 计算平均损失
+        avg_total = epoch_total_loss / len(dataloader)
+        
+        # 打印损失
+        logging.info(f"Epoch {global_epoch}: Total Loss={avg_total:.4f}")
+        
+        # 更新学习率
+        scheduler.step(avg_total)
 
-            torch.save({
-                'epoch': global_epoch,
-                'stage': stage,
-                'image_encoder_state_dict': get_state_dict(image_encoder),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': avg_total
-            }, os.path.join(checkpoint_dir, 'last_model.pth'))
+    def get_state_dict(m):
+        return m.module.state_dict() if isinstance(m, torch.nn.DataParallel) else m.state_dict()
 
-            if avg_total < best_total_loss:
-                best_total_loss = avg_total
-                torch.save(get_state_dict(image_encoder),
-                           os.path.join(checkpoint_dir, 'best_model.pth'))
+    torch.save({
+        'epoch': global_epoch,
+        'student_model_state_dict': get_state_dict(student_model),
+        'teacher_model_state_dict': get_state_dict(teacher_model),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': avg_total
+    }, os.path.join(checkpoint_dir, 'last_model.pth'))
+
+    if avg_total < best_total_loss:
+        best_total_loss = avg_total
+        torch.save(get_state_dict(student_model),
+                   os.path.join(checkpoint_dir, 'best_model.pth'))
 
     if writer:
         writer.close()
