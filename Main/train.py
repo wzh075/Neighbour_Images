@@ -129,7 +129,7 @@ def main():
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=16, help='批次大小（减小以避免显存不足）')
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--log_dir', type=str, default='../Log')
@@ -186,8 +186,7 @@ def main():
     student_model = student_model.to(device)
     teacher_model = teacher_model.to(device)
 
-    # Use MSE loss for distillation
-    loss_module = nn.MSELoss().to(device)
+
 
     checkpoint_dir = os.path.join(args.checkpoint_dir, timestamp)
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -254,7 +253,13 @@ def main():
             # ----------------------
             # 4. 计算蒸馏损失
             # ----------------------
-            distill_loss = loss_module(student_pred, teacher_feat.detach())
+            # L2 归一化
+            student_pred_norm = torch.nn.functional.normalize(student_pred, dim=1)
+            teacher_feat_norm = torch.nn.functional.normalize(teacher_feat.detach(), dim=1)
+            
+            # 基于余弦相似度的 BYOL 损失
+            # 计算负的余弦相似度（因为我们要最小化损失）
+            distill_loss = -torch.mean(torch.sum(student_pred_norm * teacher_feat_norm, dim=1))
             total_loss = args.lambda_distill * distill_loss
 
             # ----------------------
