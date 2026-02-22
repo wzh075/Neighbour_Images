@@ -79,116 +79,111 @@ def create_dataloader(config, batch_size, num_workers):
         pointcloud_root=config.get('pointcloud', {}).get('root_dir')
     )
     
-    # 创建数据加载器
+    # 创建数据加载器 - 必须设置shuffle=False和drop_last=False
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,  # 提取特征时不打乱顺序
+        shuffle=False,  # 必须设置为False，确保索引对齐
         num_workers=num_workers,
-        drop_last=False  # 不丢弃最后一个不完整批次
+        drop_last=False  # 必须设置为False，不丢弃最后一个不完整批次
     )
     
     return dataloader
 
-def extract_gallery_features(model, dataloader, device):
-    """提取Gallery特征（全视点）"""
+def extract_features(model, dataloader, device):
+    """在同一个Batch循环中提取Teacher和所有K值的Student特征"""
     model.eval()
-    gallery_feats = []
-    gallery_ids = []
-    gallery_categories = []
+    
+    # 确定最大视点数
+    sample_batch = next(iter(dataloader))
+    num_views = len(sample_batch['views'])
+    K_list = list(range(1, num_views + 1))
+    logging.info(f"视点数范围: K = 1 到 {num_views}")
+    
+    # 初始化特征存储
+    teacher_feats_all = []
+    student_feats_dict = {k: [] for k in K_list}
     
     with torch.no_grad():
-        for batch in tqdm(dataloader, desc="提取Gallery特征"):
+        for batch in tqdm(dataloader, desc="Extracting Features"):
             # 将数据移动到设备
             for v in batch['views']:
                 batch['views'][v] = batch['views'][v].to(device)
             
-            # 提取特征（Teacher模式）
-            global_feat = model(batch, return_predictor=False)
+            # --- 1. 提取 Teacher (Gallery) 特征 ---
+            t_feat = model(batch, return_predictor=False)
+            # 强制 L2 归一化
+            t_feat = torch.nn.functional.normalize(t_feat, p=2, dim=1)
+            teacher_feats_all.append(t_feat.cpu())
             
-            # 保存特征和元数据
-            gallery_feats.append(global_feat.cpu())
-            gallery_ids.extend(batch['object_id'])
-            gallery_categories.extend(batch['category'])
+            # --- 2. 在同一个 Batch 下，提取不同 K 值的 Student (Query) 特征 ---
+            view_keys = list(batch['views'].keys())
+            for K in K_list:
+                # 截取前 K 个视点
+                sub_keys = view_keys[:K]
+                sub_batch = {'views': {k: batch['views'][k] for k in sub_keys}}
+                
+                _, s_pred = model(sub_batch, return_predictor=True)
+                # 强制 L2 归一化
+                s_pred = torch.nn.functional.normalize(s_pred, p=2, dim=1)
+                student_feats_dict[K].append(s_pred.cpu())
     
-    # 合并特征
-    gallery_feats = torch.cat(gallery_feats, dim=0)
-    # L2归一化
-    gallery_feats = torch.nn.functional.normalize(gallery_feats, dim=1)
+    # 拼接张量
+    teacher_feats_tensor = torch.cat(teacher_feats_all, dim=0).to(device)
+    for K in K_list:
+        student_feats_dict[K] = torch.cat(student_feats_dict[K], dim=0).to(device)
     
-    return gallery_feats, gallery_ids, gallery_categories
+    return teacher_feats_tensor, student_feats_dict, K_list
 
-def extract_query_features(model, dataloader, device, K):
-    """提取Query特征（随机K个视点）"""
-    model.eval()
-    query_feats = []
-    query_ids = []
-    query_categories = []
-    
-    import random
-    
-    with torch.no_grad():
-        for batch in tqdm(dataloader, desc=f"提取Query特征 (K={K})"):
-            # 将数据移动到设备
-            for v in batch['views']:
-                batch['views'][v] = batch['views'][v].to(device)
-            
-            # 随机选择K个视点
-            num_views = len(batch['views'])
-            if num_views > K:
-                view_keys = list(batch['views'].keys())
-                selected_keys = random.sample(view_keys, K)
-                # 创建子集视点批次
-                subset_batch = {'views': {k: batch['views'][k] for k in selected_keys}}
-            else:
-                subset_batch = batch
-            
-            # 提取特征（Student模式）
-            _, pred_feat = model(subset_batch, return_predictor=True)
-            
-            # 保存特征和元数据
-            query_feats.append(pred_feat.cpu())
-            query_ids.extend(batch['object_id'])
-            query_categories.extend(batch['category'])
-    
-    # 合并特征
-    query_feats = torch.cat(query_feats, dim=0)
-    # L2归一化
-    query_feats = torch.nn.functional.normalize(query_feats, dim=1)
-    
-    return query_feats, query_ids, query_categories
-
-def compute_retrieval_accuracy(query_feats, query_ids, gallery_feats, gallery_ids):
+def compute_retrieval_accuracy(teacher_feats, student_feats_dict, K_list, device):
     """计算检索准确率"""
-    # 计算余弦相似度
-    similarity_matrix = torch.matmul(query_feats, gallery_feats.T)
+    results_log = []
+    num_samples = teacher_feats.size(0)
+    labels = torch.arange(num_samples).view(-1, 1).to(device)
     
-    # 获取Top-K索引
-    top1_indices = similarity_matrix.topk(1, dim=1)[1].squeeze(1)
-    top5_indices = similarity_matrix.topk(5, dim=1)[1]
-    
-    # 计算准确率
-    correct_top1 = 0
-    correct_top5 = 0
-    
-    for i, query_id in enumerate(query_ids):
-        # Top-1 准确率
-        if gallery_ids[top1_indices[i]] == query_id:
-            correct_top1 += 1
+    for K in K_list:
+        query_feats = student_feats_dict[K]
         
-        # Top-5 准确率
-        for idx in top5_indices[i]:
-            if gallery_ids[idx] == query_id:
-                correct_top5 += 1
-                break
+        # 计算余弦相似度矩阵
+        sim_matrix = torch.matmul(query_feats, teacher_feats.T)
+        
+        # 获取 Top-5 索引
+        _, top5_idx = sim_matrix.topk(5, dim=1, largest=True, sorted=True)
+        
+        # 计算 Top-1 和 Top-5 准确率
+        top1_acc = (top5_idx[:, 0:1] == labels).float().mean().item()
+        top5_acc = (top5_idx == labels).any(dim=1).float().mean().item()
+        
+        results_log.append((K, top1_acc, top5_acc))
+        logging.info(f"K={K}: Top-1 Accuracy = {top1_acc:.4f}, Top-5 Accuracy = {top5_acc:.4f}")
     
-    top1_acc = correct_top1 / len(query_ids)
-    top5_acc = correct_top5 / len(query_ids)
-    
-    return top1_acc, top5_acc
+    return results_log
 
-def plot_retrieval_curve(K_values, top1_accs, top5_accs, save_dir):
+def save_results(results_log, save_dir):
+    """保存结果到文件"""
+    # 保存为文本文件
+    txt_path = os.path.join(save_dir, 'results.txt')
+    with open(txt_path, 'w') as f:
+        f.write('K,Top-1 Accuracy,Top-5 Accuracy\n')
+        for K, top1_acc, top5_acc in results_log:
+            f.write(f'{K},{top1_acc:.4f},{top5_acc:.4f}\n')
+    
+    # 保存为CSV文件
+    csv_path = os.path.join(save_dir, 'results.csv')
+    with open(csv_path, 'w') as f:
+        f.write('K,Top-1 Accuracy,Top-5 Accuracy\n')
+        for K, top1_acc, top5_acc in results_log:
+            f.write(f'{K},{top1_acc:.4f},{top5_acc:.4f}\n')
+    
+    logging.info(f"Results saved to: {txt_path} and {csv_path}")
+
+def plot_retrieval_curve(results_log, save_dir):
     """绘制检索准确率曲线"""
+    # 提取数据
+    K_values = [item[0] for item in results_log]
+    top1_accs = [item[1] for item in results_log]
+    top5_accs = [item[2] for item in results_log]
+    
     plt.figure(figsize=(10, 6))
     
     # 绘制Top-1准确率曲线
@@ -211,26 +206,6 @@ def plot_retrieval_curve(K_values, top1_accs, top5_accs, save_dir):
     plt.close()
     
     logging.info(f"Retrieval curve saved to: {save_path}")
-
-def save_results(K_values, top1_accs, top5_accs, save_dir):
-    """保存结果到文件"""
-    # 保存为CSV文件
-    csv_path = os.path.join(save_dir, 'results.csv')
-    with open(csv_path, 'w') as f:
-        f.write('K,Top-1 Accuracy,Top-5 Accuracy\n')
-        for K, top1, top5 in zip(K_values, top1_accs, top5_accs):
-            f.write(f'{K},{top1:.4f},{top5:.4f}\n')
-    
-    # 保存为文本文件
-    txt_path = os.path.join(save_dir, 'results.txt')
-    with open(txt_path, 'w') as f:
-        f.write('Retrieval Accuracy Results\n')
-        f.write('============================\n')
-        f.write('K\tTop-1 Accuracy\tTop-5 Accuracy\n')
-        for K, top1, top5 in zip(K_values, top1_accs, top5_accs):
-            f.write(f'{K}\t{top1:.4f}\t\t{top5:.4f}\n')
-    
-    logging.info(f"Results saved to: {csv_path} and {txt_path}")
 
 def main():
     """主函数"""
@@ -294,46 +269,29 @@ def main():
     dataloader = create_dataloader(config, args.batch_size, args.num_workers)
     logging.info(f"数据加载器创建完成，总样本数: {len(dataloader.dataset)}")
     
-    # 提取Gallery特征
-    logging.info("提取Gallery特征（全视点）...")
-    gallery_feats, gallery_ids, gallery_categories = extract_gallery_features(model, dataloader, device)
-    logging.info(f"Gallery特征提取完成，共 {len(gallery_ids)} 个样本")
-    
-    # 确定最大视点数
-    sample_batch = next(iter(dataloader))
-    max_K = len(sample_batch['views'])
-    logging.info(f"最大视点数 N = {max_K}")
-    
-    # 初始化结果列表
-    K_values = list(range(1, max_K + 1))
-    top1_accs = []
-    top5_accs = []
-    
-    # 循环测试不同K值
-    for K in K_values:
-        logging.info(f"\n测试 K = {K} 视点...")
-        
-        # 提取Query特征
-        query_feats, query_ids, query_categories = extract_query_features(model, dataloader, device, K)
-        
-        # 计算检索准确率
-        top1_acc, top5_acc = compute_retrieval_accuracy(query_feats, query_ids, gallery_feats, gallery_ids)
-        
-        # 记录结果
-        top1_accs.append(top1_acc)
-        top5_accs.append(top5_acc)
-        
-        logging.info(f"K={K}: Top-1 Accuracy = {top1_acc:.4f}, Top-5 Accuracy = {top5_acc:.4f}")
-    
     # 创建结果保存目录
     save_dir = '../Results/Retrieval_Curves'
     os.makedirs(save_dir, exist_ok=True)
+    logging.info(f"结果保存目录: {save_dir}")
     
-    # 绘制并保存检索曲线
-    plot_retrieval_curve(K_values, top1_accs, top5_accs, save_dir)
+    # 提取特征（在同一个Batch循环中）
+    logging.info("提取特征（在同一个Batch循环中）...")
+    teacher_feats, student_feats_dict, K_list = extract_features(model, dataloader, device)
+    logging.info(f"特征提取完成，Teacher特征形状: {teacher_feats.shape}")
+    for K in K_list:
+        logging.info(f"K={K}时Student特征形状: {student_feats_dict[K].shape}")
+    
+    # 计算检索准确率
+    logging.info("计算检索准确率...")
+    results_log = compute_retrieval_accuracy(teacher_feats, student_feats_dict, K_list, device)
     
     # 保存结果
-    save_results(K_values, top1_accs, top5_accs, save_dir)
+    logging.info("保存结果...")
+    save_results(results_log, save_dir)
+    
+    # 绘制并保存检索曲线
+    logging.info("绘制检索曲线...")
+    plot_retrieval_curve(results_log, save_dir)
     
     logging.info("BYOL检索评估完成")
 
