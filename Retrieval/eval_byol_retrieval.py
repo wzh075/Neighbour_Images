@@ -123,7 +123,7 @@ def extract_features(model, dataloader, device):
                 sub_keys = view_keys[:K]
                 sub_batch = {'views': {k: batch['views'][k] for k in sub_keys}}
                 
-                _, s_pred = model(sub_batch, return_predictor=True)
+                s_pred = model(sub_batch, return_predictor=False)
                 # 强制 L2 归一化
                 s_pred = torch.nn.functional.normalize(s_pred, p=2, dim=1)
                 student_feats_dict[K].append(s_pred.cpu())

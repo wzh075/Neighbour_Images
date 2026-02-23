@@ -224,19 +224,15 @@ class MultiViewVisualEncoder(nn.Module):
         view_feats = backbone_feats.max(dim=2)[0]
         
         # ----------------------
-        # Stage 3: Set Transformer Aggregation
+        # Stage 3: Simple View Aggregation (Ablation)
         # ----------------------
         
-        # Step 2.1: Inter-view interaction and aggregation
-        refined_view_feats, aggregated_feat = self.set_transformer(view_feats)
+        # 放弃复杂的 Set Transformer，直接对 N 个视点进行全局最大池化或平均池化
+        # 这里使用 Max Pooling，能最好地保留 3D 物体在各个视角下最显著的激活特征
+        # view_feats shape: (B, N, feature_dim)
+        global_feat = view_feats.max(dim=1)[0]
         
-        # ----------------------
-        # Stage 4: Output
-        # ----------------------
-        
-        # Step 3.1: Squeeze aggregated feature
-        # Shape: (B, D)
-        global_feat = aggregated_feat.squeeze(1)
+        # (可选) 如果你希望保留一些平均信息，也可以改为: global_feat = view_feats.mean(dim=1)
         
         # Step 3.2: Apply predictor if needed (Student mode)
         if return_predictor:
