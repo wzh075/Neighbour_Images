@@ -127,9 +127,9 @@ def create_dataloader(config, batch_size, num_workers):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='../DataLoader/config.yaml')
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=16, help='批次大小（减小以避免显存不足）')
-    parser.add_argument('--lr', type=float, default=3e-4)
+    parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--log_dir', type=str, default='../Log')

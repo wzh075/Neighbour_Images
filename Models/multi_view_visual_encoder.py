@@ -145,17 +145,22 @@ class MultiViewVisualEncoder(nn.Module):
         # Remove classification head (fc layer)
         self.backbone = nn.Sequential(*list(self.backbone.children())[:-1])
         
-        # Step 2: Projection layer to reduce feature dim from 2048 to 1024
-        self.projection = nn.Linear(2048, feature_dim)
+        # Step 2: Projection layer (Upgrade to BYOL standard MLP Projector)
+        self.projection = nn.Sequential(
+            nn.Linear(2048, 1024),
+            nn.LayerNorm(1024),
+            nn.ReLU(inplace=True),
+            nn.Linear(1024, feature_dim)
+        )
         
         # Step 3: Set Transformer for aggregation
         self.set_transformer = SetTransformerAggregation(feature_dim, nhead, dim_feedforward, dropout)
         
         # Step 4: Predictor for Student network
-        # Predictor: 1024 -> 512 -> 1024
+        # Replaced BatchNorm1d with LayerNorm to prevent DataParallel small-batch oscillation
         self.predictor = nn.Sequential(
             nn.Linear(feature_dim, 512),
-            nn.BatchNorm1d(512),
+            nn.LayerNorm(512),
             nn.ReLU(inplace=True),
             nn.Linear(512, feature_dim)
         )
@@ -224,15 +229,13 @@ class MultiViewVisualEncoder(nn.Module):
         view_feats = backbone_feats.max(dim=2)[0]
         
         # ----------------------
-        # Stage 3: Simple View Aggregation (Ablation)
+        # Stage 3: Mean View Aggregation
         # ----------------------
         
-        # 放弃复杂的 Set Transformer，直接对 N 个视点进行全局最大池化或平均池化
-        # 这里使用 Max Pooling，能最好地保留 3D 物体在各个视角下最显著的激活特征
+        # 使用 Mean Pooling 替代 Max/SetTransformer
+        # 这确保了 Teacher (多视点均值) 和 Student (单/少视点均值) 的特征分布在同一个量级
         # view_feats shape: (B, N, feature_dim)
-        global_feat = view_feats.max(dim=1)[0]
-        
-        # (可选) 如果你希望保留一些平均信息，也可以改为: global_feat = view_feats.mean(dim=1)
+        global_feat = view_feats.mean(dim=1)
         
         # Step 3.2: Apply predictor if needed (Student mode)
         if return_predictor:
