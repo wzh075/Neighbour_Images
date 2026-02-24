@@ -46,74 +46,6 @@ class SelfAttentionBlock(nn.Module):
         return x
 
 
-class PoolingByMultiheadAttention(nn.Module):
-    """Pooling by Multihead Attention (PMA) for global feature aggregation"""
-    def __init__(self, d_model, nhead=8, dim_feedforward=2048, dropout=0.1):
-        super(PoolingByMultiheadAttention, self).__init__()
-        # Learnable seed token
-        self.seed_token = nn.Parameter(torch.randn(1, 1, d_model))
-        
-        # Multihead attention layer
-        self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=True)
-        
-        # Feedforward network
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-        
-        # Layer normalization
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        
-        # Dropout layers
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        
-        # Activation function
-        self.activation = nn.ReLU()
-
-    def forward(self, x):
-        # x: (B, N, D)
-        B = x.size(0)
-        
-        # Expand seed token to batch size
-        seed = self.seed_token.expand(B, -1, -1)  # (B, 1, D)
-        
-        # Multihead attention between seed and input features
-        x2 = self.multihead_attn(seed, x, x)[0]
-        x = seed + self.dropout1(x2)
-        x = self.norm1(x)
-        
-        # Feedforward network
-        x2 = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        x = x + self.dropout2(x2)
-        x = self.norm2(x)
-        
-        return x
-
-
-class SetTransformerAggregation(nn.Module):
-    """Set Transformer for aggregating multi-view features"""
-    def __init__(self, d_model, nhead=8, dim_feedforward=2048, dropout=0.1):
-        super(SetTransformerAggregation, self).__init__()
-        # Self-Attention Block for inter-view interaction
-        self.sab = SelfAttentionBlock(d_model, nhead, dim_feedforward, dropout)
-        
-        # Pooling by Multihead Attention for global feature aggregation
-        self.pma = PoolingByMultiheadAttention(d_model, nhead, dim_feedforward, dropout)
-
-    def forward(self, x):
-        # x: (B, N, D) - input view features
-        
-        # Step 1: Inter-view feature interaction
-        refined_view_feats = self.sab(x)  # (B, N, D)
-        
-        # Step 2: Global feature aggregation
-        aggregated_feat = self.pma(refined_view_feats)  # (B, 1, D)
-        
-        return refined_view_feats, aggregated_feat
-
-
 class MultiViewVisualEncoder(nn.Module):
     """
     Multi-View Visual Encoder with Neighbour Image Fusion Strategy.
@@ -129,9 +61,19 @@ class MultiViewVisualEncoder(nn.Module):
        - Stage 1 (Backbone): 对所有邻域图独立提取特征。
        - Stage 2 (Intra-View Fusion): 通过最大池化（Max Pooling）融合同一视点下的5张邻域图特征。
          这一步不是为了数据增强，而是为了利用邻域的互补信息，形成一个抗遮挡、信息更丰富的“全局视点表示”。
-       - Stage 3 (Inter-View Aggregation): 使用 Set Transformer 融合 N 个增强后的视点特征，生成 3D 对象的全局描述。
+       - Stage 3 (MAE Encoder): 将视点特征视为序列 Token，经位置编码后送入 Transformer Encoder（SAB 堆叠）。
     """
-    def __init__(self, backbone_type='resnet50', feature_dim=1024, nhead=8, dim_feedforward=2048, dropout=0.1, freeze_backbone=False):
+    def __init__(
+        self,
+        backbone_type='resnet50',
+        feature_dim=1024,
+        max_num_views=64,
+        encoder_depth=2,
+        nhead=8,
+        dim_feedforward=2048,
+        dropout=0.1,
+        freeze_backbone=False,
+    ):
         super(MultiViewVisualEncoder, self).__init__()
         
         # Step 1: Initialize backbone
@@ -152,40 +94,79 @@ class MultiViewVisualEncoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(1024, feature_dim)
         )
-        
-        # Step 3: Set Transformer for aggregation
-        self.set_transformer = SetTransformerAggregation(feature_dim, nhead, dim_feedforward, dropout)
-        
-        # Step 4: Predictor for Student network
-        # Replaced BatchNorm1d with LayerNorm to prevent DataParallel small-batch oscillation
-        self.predictor = nn.Sequential(
-            nn.Linear(feature_dim, 512),
-            nn.LayerNorm(512),
-            nn.ReLU(inplace=True),
-            nn.Linear(512, feature_dim)
+
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, feature_dim))
+        self.view_pos_embed = nn.Parameter(torch.zeros(1, max_num_views, feature_dim))
+
+        self.encoder_blocks = nn.ModuleList(
+            [SelfAttentionBlock(feature_dim, nhead, dim_feedforward, dropout) for _ in range(encoder_depth)]
         )
+
+        self._init_parameters()
         
         # Step 5: Freeze backbone parameters if specified
         if freeze_backbone:
             for param in self.backbone.parameters():
                 param.requires_grad = False
-            print(f"ResNet Backbone parameters have been frozen. Only projection layers, set transformer and predictor will be trained.")
+            print(f"ResNet Backbone parameters have been frozen. Only projection layers and MAE encoder will be trained.")
         else:
             for param in self.backbone.parameters():
                 param.requires_grad = True
             print(f"All parameters (including ResNet Backbone) will be trained.")
 
-    def forward(self, batch, return_predictor=False):
-        # Input: batch containing 'views' dictionary
+    def _init_parameters(self):
+        if hasattr(nn.init, "trunc_normal_"):
+            nn.init.trunc_normal_(self.view_pos_embed, std=0.02)
+            nn.init.trunc_normal_(self.mask_token, std=0.02)
+        else:
+            nn.init.normal_(self.view_pos_embed, std=0.02)
+            nn.init.normal_(self.mask_token, std=0.02)
+
+    @staticmethod
+    def _sort_view_keys(view_keys):
+        def parse_view_index(k):
+            if isinstance(k, str) and '_' in k:
+                suffix = k.rsplit('_', 1)[-1]
+                if suffix.isdigit():
+                    return int(suffix)
+            return k
+
+        return sorted(view_keys, key=parse_view_index)
+
+    @staticmethod
+    def _random_masking(x, mask_ratio):
+        B, N, D = x.shape
+        device = x.device
+
+        if mask_ratio <= 0:
+            ids_restore = torch.arange(N, device=device).unsqueeze(0).repeat(B, 1)
+            mask = torch.zeros(B, N, device=device, dtype=torch.bool)
+            return x, mask, ids_restore
+
+        len_keep = int(N * (1 - mask_ratio))
+        len_keep = max(1, min(N, len_keep))
+
+        noise = torch.rand(B, N, device=device)
+        ids_shuffle = torch.argsort(noise, dim=1)
+        ids_restore = torch.argsort(ids_shuffle, dim=1)
+
+        ids_keep = ids_shuffle[:, :len_keep]
+        x_visible = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).expand(-1, -1, D))
+
+        mask = torch.ones(B, N, device=device, dtype=torch.bool)
+        mask.scatter_(1, ids_keep, False)
+
+        return x_visible, mask, ids_restore
+
+    def forward(self, batch, mask_ratio=0.75):
         views_dict = batch['views']
         
         # ----------------------
         # Stage 1: Backbone Feature Extraction
         # ----------------------
         
-        # Step 1.1: Convert dictionary to tensor
-        # Get all view tensors
-        view_tensors = list(views_dict.values())  # List of (B, 5, 3, H, W) tensors
+        view_keys = self._sort_view_keys(list(views_dict.keys()))
+        view_tensors = [views_dict[k] for k in view_keys]
         
         # Stack views: (N, B, 5, 3, H, W)
         # Note: The dimension '5' here represents the Neighbour Images (Center + 4 deviations)
@@ -227,23 +208,19 @@ class MultiViewVisualEncoder(nn.Module):
         # This allows the model to capture the most salient features from the center and its surroundings.
         # Shape: (B, N, feature_dim)
         view_feats = backbone_feats.max(dim=2)[0]
-        
-        # ----------------------
-        # Stage 3: Mean View Aggregation
-        # ----------------------
-        
-        # 使用 Mean Pooling 替代 Max/SetTransformer
-        # 这确保了 Teacher (多视点均值) 和 Student (单/少视点均值) 的特征分布在同一个量级
-        # view_feats shape: (B, N, feature_dim)
-        global_feat = view_feats.mean(dim=1)
-        
-        # Step 3.2: Apply predictor if needed (Student mode)
-        if return_predictor:
-            pred_feat = self.predictor(global_feat)
-            return global_feat, pred_feat
-        else:
-            # Teacher mode or test mode
-            return global_feat
+
+        target = view_feats
+
+        if N > self.view_pos_embed.size(1):
+            raise ValueError(f"num_views={N} exceeds max_num_views={self.view_pos_embed.size(1)}")
+
+        x = view_feats + self.view_pos_embed[:, :N, :]
+        x_visible, mask, ids_restore = self._random_masking(x, mask_ratio=mask_ratio)
+
+        for blk in self.encoder_blocks:
+            x_visible = blk(x_visible)
+
+        return x_visible, mask, ids_restore, target
 
 
 if __name__ == "__main__":
@@ -265,21 +242,22 @@ if __name__ == "__main__":
     
     dummy_batch = {'views': dummy_views}
     
-    # Test Teacher mode (return_predictor=False)
-    print("=== Testing Teacher mode ===")
-    global_feat = encoder(dummy_batch, return_predictor=False)
-    print(f"Global feature shape: {global_feat.shape}")
-    print(f"Expected shape: (B, D) = ({B}, 1024)")
-    assert global_feat.shape == (B, 1024), "Global feature shape mismatch"
-    print("Teacher mode test passed!")
-    
-    # Test Student mode (return_predictor=True)
-    print("\n=== Testing Student mode ===")
-    global_feat, pred_feat = encoder(dummy_batch, return_predictor=True)
-    print(f"Global feature shape: {global_feat.shape}")
-    print(f"Predicted feature shape: {pred_feat.shape}")
-    print(f"Expected shapes: (B, D) = ({B}, 1024), (B, D) = ({B}, 1024)")
-    assert global_feat.shape == (B, 1024), "Global feature shape mismatch"
-    assert pred_feat.shape == (B, 1024), "Predicted feature shape mismatch"
-    print("Student mode test passed!")
+    print("=== Testing MAE encoder (no mask) ===")
+    latent, mask, ids_restore, target = encoder(dummy_batch, mask_ratio=0.0)
+    print(f"Latent shape: {latent.shape}")
+    print(f"Target shape: {target.shape}")
+    assert latent.shape == (B, N, 1024), "Latent shape mismatch when mask_ratio=0"
+    assert mask.shape == (B, N), "Mask shape mismatch"
+    assert ids_restore.shape == (B, N), "ids_restore shape mismatch"
+    assert target.shape == (B, N, 1024), "Target shape mismatch"
+
+    print("\n=== Testing MAE encoder (with mask) ===")
+    latent, mask, ids_restore, target = encoder(dummy_batch, mask_ratio=0.5)
+    print(f"Latent shape: {latent.shape}")
+    num_visible = latent.size(1)
+    assert 1 <= num_visible <= N, "Invalid number of visible tokens"
+    assert mask.shape == (B, N), "Mask shape mismatch"
+    assert ids_restore.shape == (B, N), "ids_restore shape mismatch"
+    assert target.shape == (B, N, 1024), "Target shape mismatch"
+
     print("\nAll tests passed!")

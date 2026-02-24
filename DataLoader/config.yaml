@@ -21,3 +21,10 @@ dataloader:
   shuffle: true
   num_workers: 0
   drop_last: false
+
+mae:
+  mask_ratio: 0.75
+  encoder_depth: 2
+  decoder_depth: 2
+  max_num_views: 64
+  feature_dim: 1024

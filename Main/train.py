@@ -45,26 +45,13 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
+import torch.nn.functional as F
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DataLoader.data_loader import ModelNet40NeighbourDataset, load_config
 from Models.multi_view_visual_encoder import MultiViewVisualEncoder
-from Loss_Function.instance_contrastive_loss import ViewDropoutContrastiveLoss
-
-
-@torch.no_grad()
-def update_ema_variables(student_model, teacher_model, momentum=0.996):
-    """
-    Update teacher model parameters using EMA from student model
-    
-    Args:
-        student_model: Student model with learnable parameters
-        teacher_model: Teacher model with EMA parameters
-        momentum: EMA momentum factor
-    """
-    for student_param, teacher_param in zip(student_model.parameters(), teacher_model.parameters()):
-        teacher_param.data.mul_(momentum).add_(student_param.data, alpha=1 - momentum)
+from Models.mae_decoder import MAEDecoder
 
 
 def setup_seed(seed):
@@ -135,8 +122,7 @@ def main():
     parser.add_argument('--log_dir', type=str, default='../Log')
     parser.add_argument('--checkpoint_dir', type=str, default='../Checkpoints')
     parser.add_argument('--freeze_backbone', action='store_true', default=True, help='是否冻结 ResNet 骨干网络（默认冻结）')
-    parser.add_argument('--ema_momentum', type=float, default=0.996, help='EMA momentum factor for teacher model')
-    parser.add_argument('--lambda_distill', type=float, default=1.0, help='蒸馏损失的权重')
+    parser.add_argument('--mask_ratio', type=float, default=None, help='视点遮掩比例（若不填则读取config.yaml）')
     args, _ = parser.parse_known_args()
 
     setup_seed(42)
@@ -162,16 +148,24 @@ def main():
 
     dataloader = create_dataloader(config, args.batch_size, args.num_workers)
 
-    # Create Student model
-    student_model = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
+    mae_cfg = config.get('mae', {})
+    feature_dim = int(mae_cfg.get('feature_dim', 1024))
+    max_num_views = int(mae_cfg.get('max_num_views', 64))
+    encoder_depth = int(mae_cfg.get('encoder_depth', 2))
+    decoder_depth = int(mae_cfg.get('decoder_depth', 2))
+    mask_ratio = float(args.mask_ratio) if args.mask_ratio is not None else float(mae_cfg.get('mask_ratio', 0.75))
 
-    # Create Teacher model
-    teacher_model = MultiViewVisualEncoder(feature_dim=1024, freeze_backbone=args.freeze_backbone)
-    
-    # Initialize Teacher model with Student model's parameters
-    for student_param, teacher_param in zip(student_model.parameters(), teacher_model.parameters()):
-        teacher_param.data.copy_(student_param.data)
-        teacher_param.requires_grad = False  # Freeze Teacher model
+    encoder = MultiViewVisualEncoder(
+        feature_dim=feature_dim,
+        max_num_views=max_num_views,
+        encoder_depth=encoder_depth,
+        freeze_backbone=args.freeze_backbone,
+    )
+    decoder = MAEDecoder(
+        feature_dim=feature_dim,
+        max_num_views=max_num_views,
+        depth=decoder_depth,
+    )
 
     if device.type == 'cuda':
         gpu_count = torch.cuda.device_count()
@@ -180,28 +174,29 @@ def main():
             # 显示物理 GPU IDs（通过 CUDA_VISIBLE_DEVICES 获取）
             physical_gpu_ids = gpu_ids.split(',') if isinstance(gpu_ids, str) else gpu_ids
             logging.info(f"DataParallel 使用逻辑 GPU IDs: {device_ids} (对应物理 GPU IDs: {physical_gpu_ids})")
-            student_model = torch.nn.DataParallel(student_model, device_ids=device_ids)
-            teacher_model = torch.nn.DataParallel(teacher_model, device_ids=device_ids)
+            encoder = torch.nn.DataParallel(encoder, device_ids=device_ids)
+            decoder = torch.nn.DataParallel(decoder, device_ids=device_ids)
 
-    student_model = student_model.to(device)
-    teacher_model = teacher_model.to(device)
+    encoder = encoder.to(device)
+    decoder = decoder.to(device)
 
 
 
     checkpoint_dir = os.path.join(args.checkpoint_dir, timestamp)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    # 初始化优化器，只更新 Student 模型的参数
-    raw_student = student_model.module if isinstance(student_model, torch.nn.DataParallel) else student_model
+    raw_encoder = encoder.module if isinstance(encoder, torch.nn.DataParallel) else encoder
     
     # 设置参数梯度
     if args.freeze_backbone:
-        for p in raw_student.backbone.parameters(): p.requires_grad = False
-    for p in raw_student.projection.parameters(): p.requires_grad = True
-    for p in raw_student.set_transformer.parameters(): p.requires_grad = True
-    for p in raw_student.predictor.parameters(): p.requires_grad = True
+        for p in raw_encoder.backbone.parameters():
+            p.requires_grad = False
+    for p in raw_encoder.projection.parameters():
+        p.requires_grad = True
+    for p in raw_encoder.encoder_blocks.parameters():
+        p.requires_grad = True
     
-    params = [p for p in raw_student.parameters() if p.requires_grad]
+    params = [p for p in encoder.parameters() if p.requires_grad] + [p for p in decoder.parameters() if p.requires_grad]
     optimizer = optim.Adam(params, lr=args.lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
@@ -218,61 +213,21 @@ def main():
             for v in batch['views']:
                 batch['views'][v] = batch['views'][v].to(device)
 
-            # ----------------------
-            # 1. 准备 Teacher 输入（完整视点）
-            # ----------------------
-            teacher_batch = batch
-
-            # ----------------------
-            # 2. 准备 Student 输入（随机子集视点）
-            # ----------------------
-            # 获取视点总数
-            num_views = len(batch['views'])
-            if num_views > 1:
-                # 随机选择 1 到 num_views-1 个视点
-                K = torch.randint(1, num_views, (1,)).item()
-                # 随机选择 K 个视点索引
-                view_keys = list(batch['views'].keys())
-                selected_keys = random.sample(view_keys, K)
-                # 创建子集视点批次
-                student_batch = {'views': {k: batch['views'][k] for k in selected_keys}}
+            latent, mask, ids_restore, target = encoder(batch, mask_ratio=mask_ratio)
+            pred = decoder(latent, ids_restore)
+            masked_pred = pred[mask]
+            masked_target = target.detach()[mask]
+            if masked_pred.numel() == 0:
+                total_loss = F.mse_loss(pred, target.detach())
             else:
-                # 如果只有一个视点，使用完整视点
-                student_batch = batch
+                total_loss = F.mse_loss(masked_pred, masked_target)
 
             # ----------------------
-            # 3. 前向传播
-            # ----------------------
-            # Teacher 模型（完整视点，不使用预测器）
-            with torch.no_grad():
-                teacher_feat = teacher_model(teacher_batch, return_predictor=False)
-
-            # Student 模型（子集视点，使用预测器）
-            student_feat, student_pred = student_model(student_batch, return_predictor=True)
-
-            # ----------------------
-            # 4. 计算蒸馏损失
-            # ----------------------
-            # L2 归一化
-            student_pred_norm = torch.nn.functional.normalize(student_pred, dim=1)
-            teacher_feat_norm = torch.nn.functional.normalize(teacher_feat.detach(), dim=1)
-            
-            # 基于余弦相似度的 BYOL 损失
-            # 计算负的余弦相似度（因为我们要最小化损失）
-            distill_loss = -torch.mean(torch.sum(student_pred_norm * teacher_feat_norm, dim=1))
-            total_loss = args.lambda_distill * distill_loss
-
-            # ----------------------
-            # 5. 反向传播
+            # 反向传播
             # ----------------------
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
-
-            # ----------------------
-            # 6. EMA 更新 Teacher 模型
-            # ----------------------
-            update_ema_variables(student_model, teacher_model, momentum=args.ema_momentum)
 
             # 累加损失
             epoch_total_loss += total_loss.item()
@@ -280,8 +235,6 @@ def main():
             if writer:
                 # 记录总损失
                 writer.add_scalar('Loss/total', total_loss.item(), batch_counter)
-                # 记录蒸馏损失
-                writer.add_scalar('Loss/distill', distill_loss.item(), batch_counter)
                 # 记录学习率
                 for i, param_group in enumerate(optimizer.param_groups):
                     writer.add_scalar(f'LearningRate/group_{i}', param_group['lr'], batch_counter)
@@ -296,21 +249,25 @@ def main():
         # 更新学习率
         scheduler.step(avg_total)
 
-    def get_state_dict(m):
-        return m.module.state_dict() if isinstance(m, torch.nn.DataParallel) else m.state_dict()
+        def get_state_dict(m):
+            return m.module.state_dict() if isinstance(m, torch.nn.DataParallel) else m.state_dict()
 
-    torch.save({
-        'epoch': global_epoch,
-        'student_model_state_dict': get_state_dict(student_model),
-        'teacher_model_state_dict': get_state_dict(teacher_model),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'loss': avg_total
-    }, os.path.join(checkpoint_dir, 'last_model.pth'))
+        torch.save(
+            {
+                'epoch': global_epoch,
+                'encoder_state_dict': get_state_dict(encoder),
+                'decoder_state_dict': get_state_dict(decoder),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_total,
+                'mask_ratio': mask_ratio,
+            },
+            os.path.join(checkpoint_dir, 'last_model.pth'),
+        )
 
-    if avg_total < best_total_loss:
-        best_total_loss = avg_total
-        torch.save(get_state_dict(student_model),
-                   os.path.join(checkpoint_dir, 'best_model.pth'))
+        if avg_total < best_total_loss:
+            best_total_loss = avg_total
+            torch.save(get_state_dict(encoder), os.path.join(checkpoint_dir, 'best_encoder.pth'))
+            torch.save(get_state_dict(decoder), os.path.join(checkpoint_dir, 'best_decoder.pth'))
 
     if writer:
         writer.close()
