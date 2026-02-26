@@ -1,0 +1,18 @@
+2026-02-23 16:54:35,084 - INFO - CUDA_VISIBLE_DEVICES = 0,1,2,3
+2026-02-23 16:54:38,273 - INFO - 使用设备: cuda
+2026-02-23 16:54:38,330 - INFO - Actual torch.cuda.device_count() = 4
+2026-02-23 16:54:38,334 - INFO - 逻辑 cuda:0 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-23 16:54:38,335 - INFO - 逻辑 cuda:1 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-23 16:54:38,335 - INFO - 逻辑 cuda:2 -> NVIDIA GeForce RTX 2080 Ti | Memory: 10.75 GB
+2026-02-23 16:54:38,335 - INFO - 逻辑 cuda:3 -> NVIDIA GeForce RTX 3090 | Memory: 23.69 GB
+2026-02-23 16:54:41,434 - INFO - DataParallel 使用逻辑 GPU IDs: [0, 1, 2, 3] (对应物理 GPU IDs: ['0', '1', '2', '3'])
+2026-02-23 17:01:44,722 - INFO - Epoch 1: Total Loss=-0.9835
+2026-02-23 17:08:37,070 - INFO - Epoch 2: Total Loss=-0.9990
+2026-02-23 17:15:29,409 - INFO - Epoch 3: Total Loss=-0.9987
+2026-02-23 17:22:19,277 - INFO - Epoch 4: Total Loss=-0.9980
+2026-02-23 17:29:12,366 - INFO - Epoch 5: Total Loss=-0.9960
+2026-02-23 17:35:57,694 - INFO - Epoch 6: Total Loss=-0.9927
+2026-02-23 17:42:48,069 - INFO - Epoch 7: Total Loss=-0.9907
+2026-02-23 17:49:43,011 - INFO - Epoch 8: Total Loss=-0.9882
+2026-02-23 17:56:33,159 - INFO - Epoch 9: Total Loss=-0.9871
+2026-02-23 18:03:19,251 - INFO - Epoch 10: Total Loss=-0.9858
